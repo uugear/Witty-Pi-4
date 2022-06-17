@@ -10,3 +10,7 @@ Witty Pi is an add-on board that adds realtime clock and power management to you
 ![](https://user-images.githubusercontent.com/6317566/174240816-01f8ac49-55d1-486a-bfef-b6471371125b.png)
 
 Witty Pi 4 supports all Raspberry Pi models with 40-pin header, including A+, B+, 2B, Zero, Zero W, Zero 2 W, 3B, 3B+ and 4B.
+
+### **References:**
+
+[Witty Pi 4 User Manual](https://www.uugear.com/doc/WittyPi4_UserManual.pdf)
