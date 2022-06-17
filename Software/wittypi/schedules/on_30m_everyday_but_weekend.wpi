@@ -1,0 +1,20 @@
+# Turn on Raspberry Pi at 8:00 AM on every working day, for 30 minutes
+
+BEGIN	2022-06-06 08:00:00		# Jun 6th, 2022 is a Monday
+END	2035-07-31 23:59:59
+
+# -- Monday --
+ON	M30		# keep ON state for 30 minutes
+OFF	H23 M30		# keep OFF state for 23 hours and 30 minutes
+# -- Tuesday --
+ON      M30             # keep ON state for 30 minutes
+OFF     H23 M30         # keep OFF state for 23 hours and 30 minutes
+# -- Wednesday --
+ON      M30             # keep ON state for 30 minutes
+OFF     H23 M30         # keep OFF state for 23 hours and 30 minutes
+# -- Thursday --
+ON      M30             # keep ON state for 30 minutes
+OFF     H23 M30         # keep OFF state for 23 hours and 30 minutes
+# -- Friday --
+ON      M30             # keep ON state for 30 minutes
+OFF     D2 H23 M30      # keep OFF state for 2 days 23 hours and 30 minutes

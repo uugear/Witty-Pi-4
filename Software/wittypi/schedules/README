@@ -1,0 +1,49 @@
+===============================================================================
+How to use these .wpi files?
+===============================================================================
+  The .wpi files in this directory are Witty Pi schedule script examples. When 
+you run wittyPi.sh, you can choose a schedule script there. The schedule 
+script file you selected will be copied to the Witty Pi install directory 
+(~/wittypi), and the next shutdown and startup will be scheduled automatically 
+for you.
+
+  You can also manually copy the schedule script to "~/wittypi/schedule.wpi" 
+and then run "sudo ./runScript" to get the same result.
+
+===============================================================================
+How to create your own .wpi file?
+===============================================================================
+  You can use any text editor to create/edit your own .wpi file. Then you can 
+use it like other .wpi files in this directory.
+
+  The content of .wpi file defines a loop, which specifies each ON/OFF state 
+and its duration. Your Raspberry Pi will automatically run the runScript.sh 
+after booting, which will schedule the next shutdown and startup, according to 
+the script content. As long as the current time is between the BEGIN and END 
+time of the script, the loop will continue.
+
+  Please take other .wpi files as examples. You will need to define the BEGIN 
+and END time of the loop, and each ON/OFF state in the loop. The duration of 
+the state is define by putting D?, H?, M? and S? parameter after the state 
+type (ON/OFF), while D as Days, H as Hours, M as Minutes, S as Seconds and ? 
+is a number. For example, "D1 H2 M3 S10" means 1 day 2 hours 3 minutes and 10 
+seconds, while "H5 M2" means 5 hours and 2 minutes.
+
+  An ON state will be ended by a scheduled shutdown, while an OFF state will be
+end by a scheduled startup. If you want to skip any shutdown/startup, just append
+"WAIT" at the end of the state, and make sure your program will shutdown your
+Raspberry Pi after finishing its job. You can run command "gpio -g mode 4 out" to
+pull down GPIO-4 so Witty Pi's software will shutdown your Raspberry Pi gracefully.
+
+Sometimes you may want to skip certain scheduling of shutdown/startup, and let 
+your own program to do the job. This can be achieved by using the WAIT syntax.
+Here is an example:
+
+ON M15 WAIT
+
+This will keep your Raspberry Pi ON and no shutdown will be scheduled after 15 
+minutes, because there is a WAIT at the end of the line. The parameter M15 is here 
+only to make sure the next OFF state can be calculated correctly and next shutdown 
+can be scheduled properly. Once you use WAIT in the ON state, you are responsible 
+for the shutdown of your Raspberry Pi. Also if you use WAIT in the OFF state, you 
+will need to turn on your Raspberry Pi (manually or via external electronic switch).
