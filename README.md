@@ -13,4 +13,5 @@ Witty Pi 4 supports all Raspberry Pi models with 40-pin header, including A+, B+
 
 ### **References:**
 
+[Witty Pi 4 Product Page](https://www.uugear.com/product/witty-pi-4/)
 [Witty Pi 4 User Manual](https://www.uugear.com/doc/WittyPi4_UserManual.pdf)
