@@ -15,3 +15,10 @@ Witty Pi 4 supports all Raspberry Pi models with 40-pin header, including A+, B+
 
 *   [Witty Pi 4 Product Page](https://www.uugear.com/product/witty-pi-4/)
 *   [Witty Pi 4 User Manual](https://www.uugear.com/doc/WittyPi4_UserManual.pdf)
+
+### Firmware Compiling
+To compile the firmware, you need to install [ATtinyCore (V1.5.2)](https://github.com/SpenceKonde/ATTinyCore) in your Arduino IDE.
+
+Here are the configurations on your Arduino IDE:
+
+![](https://github.com/uugear/Witty-Pi-4/raw/main/Firmware/WittyPi4_Arduino_Settings.png)
