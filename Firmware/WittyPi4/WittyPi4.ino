@@ -101,7 +101,7 @@
 #define I2C_CONF_OVER_TEMP_ACTION   45  // action for over temperature: 0-do nothing; 1-shutdown; 2-startup
 #define I2C_CONF_OVER_TEMP_POINT    46  // set point for over temperature
 
-#define I2C_CONF_RFU_1              47  // reserve for future usage
+#define I2C_CONF_DEFAULT_ON_DELAY   47  // the delay (in second) between MCU initialization and turning on Raspberry Pi, when I2C_CONF_DEFAULT_ON = 1
 #define I2C_CONF_RFU_2              48  // reserve for future usage
 #define I2C_CONF_RFU_3              49  // reserve for future usage
 
@@ -235,6 +235,7 @@ void setup() {
   // power on or sleep
   bool defaultOn = (i2cReg[I2C_CONF_DEFAULT_ON] == 1);
   if (defaultOn) {
+    delay(i2cReg[I2C_CONF_DEFAULT_ON_DELAY] * 1000);  // delay if the value is configured
     powerOn();  // power on directly
   } else {
     sleep();    // sleep and wait for button action
@@ -267,7 +268,7 @@ void loop() {
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
   i2cReg[I2C_ID] = 0x26;
-  i2cReg[I2C_FW_REVISION] = 0x01;
+  i2cReg[I2C_FW_REVISION] = 0x02;
   
   i2cReg[I2C_CONF_ADDRESS] = 0x08;
 
