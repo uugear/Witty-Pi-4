@@ -1,7 +1,7 @@
 /**
- * Firmware for WittyPi 4 
+ * Firmware for WittyPi 4
  * 
- * Revision: 1
+ * Revision: 2
  */
  
 #define SDA_PIN 2
