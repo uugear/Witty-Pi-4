@@ -85,15 +85,12 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly I2C_RTC_TIMER_VALUE=70
   readonly I2C_RTC_TIMER_MODE=71
 
-  #readonly HALT_PIN=4    # halt by GPIO-4 (BCM naming)
-  #readonly SYSUP_PIN=17  # output SYS_UP signal on GPIO-17 (BCM naming)
-  #readonly CHRG_PIN=5    # input to detect charging status
-  #readonly STDBY_PIN=6   # input to detect standby status
   # WiringPi for BananaPi M5 naming, e.g. pin number
   readonly HALT_PIN=7    # halt by GPIO-4 (WiringPI naming)
   readonly SYSUP_PIN=11  # output SYS_UP signal on GPIO-17 (WiringPI naming)
   readonly CHRG_PIN=29    # input to detect charging status (WiringPI naming)
   readonly STDBY_PIN=31   # input to detect standby status (WiringPI naming)
+
 
   readonly INTERNET_SERVER='http://google.com' # check network accessibility and get network time
 

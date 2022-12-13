@@ -144,6 +144,14 @@ else
   TIME_UNKNOWN=2
 fi
 
+# L3V7 only: make sure CHRG_PIN and STDBY_PIN are input with internal pull-up
+if [ $(($firmwareID)) -eq 55 ]; then
+  gpio -g mode $CHRG_PIN up
+  gpio -g mode $CHRG_PIN in
+  gpio -g mode $STDBY_PIN up
+  gpio -g mode $STDBY_PIN in
+fi
+
 # delay until GPIO pin state gets stable
 counter=0
 while [ $counter -lt 5 ]; do  # increase this value if it needs more time
