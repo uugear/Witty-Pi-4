@@ -21,6 +21,7 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly I2C_ALARM1_TRIGGERED=9
   readonly I2C_ALARM2_TRIGGERED=10
   readonly I2C_ACTION_REASON=11
+  readonly I2C_FW_REVISION=12
 
   readonly I2C_CONF_ADDRESS=16
   readonly I2C_CONF_DEFAULT_ON=17
@@ -58,6 +59,7 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly I2C_CONF_BELOW_TEMP_POINT=44
   readonly I2C_CONF_OVER_TEMP_ACTION=45
   readonly I2C_CONF_OVER_TEMP_POINT=46
+  readonly I2C_CONF_DEFAULT_ON_DELAY=47
 
   readonly I2C_LM75B_TEMPERATURE=50
   readonly I2C_LM75B_CONF=51
@@ -104,6 +106,7 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly REASON_OVER_TEMPERATURE='0x06'
   readonly REASON_BELOW_TEMPERATURE='0x07'
   readonly REASON_ALARM1_DELAYED='0x08'
+  readonly REASON_USB_5V_CONNECTED='0x09'
 
   TIME_UNKNOWN=0
 fi
