@@ -20,7 +20,8 @@ if [ -z "$my_dir" ] ; then
   exit 1
 fi
 . $my_dir/utilities.sh
-. $my_dir/gpio-util.sh
+# to use wiringPI module, uncomment
+#. $my_dir/gpio-util.sh
 
 if [ $(is_mc_connected) -ne 1 ]; then
   echo ''

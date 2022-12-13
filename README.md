@@ -27,3 +27,59 @@ Here are the configurations on your Arduino IDE:
 ![](https://github.com/uugear/Witty-Pi-4/raw/main/Firmware/WittyPi4_Arduino_Settings.png)
 
 To upload the firmware to Witty Pi, you can follow [this document](https://www.uugear.com/doc/WittyPi3_UpdateFirmware.pdf).
+
+
+### Use with Banana Pi M5 (and possibly with Odroid C4)
+
+Use Raspbian:
+-----
+BPI-M5 BPI-M2 Pro new image:Raspbian image, 2022-4-09 update, Raspbian image for linux kernel 4.9 and 5.17. support 32bit and 64 bit,please choose the right image
+
+Manufacturer google driver: https://drive.google.com/drive/folders/1oqamIMl5Kmb3LVYMPFw-1tilvwKQI6n-
+
+`2022-04-09-raspios-bullseye-arm64-bpi-m5-m2pro-sd-emmc.img`
+Use 64bit version with Kernel 4.9.x (I think I2C has a bug in newer kernels)
+
+
+deactive UART:
+----
+Note: use `/boot/boot/boot.ini`, not `/boot/config.txt`!
+
+	#setenv overlays "i2c0 spi0 uart1"
+	setenv overlays "i2c0"
+
+Install WiringPi:
+-----
+
+	$ git clone https://github.com/BPI-SINOVOIP/amlogic-wiringPi
+	$ cd amlogic-wiringPi
+	$ chmod a+x build
+	$ sudo ./build
+
+Modify WiringPi sources:
+As given in the PR
+
+Install WittyPi:
+-----
+Dont use the install shell script, but work yourself manually along `install.sh`...
+
+Make Pin8 give power state:
+------
+Add a custom LED in device tree (under leds { ... }) that map to PIN-8, e.g. on second GPIO 0x12 number 78 (hex 0x4e) with pull-down 0x00. The Pin number in DT-counting, can be found by `cat /sys/kernel/debug/gpio` and count zero based until the desired GPIO pin.
+This LED is used as the powering indication instead of the default UART_Tx signal.
+
+Decompile DT: found in boot folder in boot partition on SD card: `<SD-boot part>/boot/`
+
+	dtc -I dtb -O dts <SD-boot part>/boot/meson64_bananapi_m5.dtb -o ~/tmp/meson64_bananapi_m5.dtb.dts
+
+Edit DT source by adding LED:
+
+	wittypwr {
+		label = "wittypwr";
+		gpios = <0x12 0x4e 0x00>;
+		linux,default-trigger = "default-on";
+	};
+
+Compile DT:
+
+	dtc -I dts -O ~/tmp/dtb meson64_bananapi_m5.dtb.dts -o <SD-boot part>/boot/meson64_bananapi_m5.dtb
