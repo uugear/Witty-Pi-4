@@ -11,13 +11,14 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$cur_dir/utilities.sh"
 
 # GPIO utilites
-. "$cur_dir/gpio-util.sh"
+# to use wiringPI module, uncomment
+#. "$cur_dir/gpio-util.sh"
 
 TIME_UNKNOWN=1
 log 'Witty Pi daemon (v4.10) is started.'
 
 # log Raspberry Pi model
-pi_model=$(cat /proc/device-tree/model)
+pi_model=$(tr -d '\0' < /proc/device-tree/model) # strip NULL-byte to avoid warning
 log "Running on $pi_model"
 
 # log NOOBS version, if exists
@@ -39,9 +40,10 @@ if one_wire_confliction ; then
 fi
 
 # make sure the halt pin is input with internal pull up
-gpio -g mode $HALT_PIN up
-gpio -g mode $HALT_PIN in
-
+#gpio -g mode $HALT_PIN up
+#gpio -g mode $HALT_PIN in
+gpio mode $HALT_PIN up # WiringPI naming convention
+gpio mode $HALT_PIN in # WiringPI naming convention
 
 # check if micro controller presents
 has_mc=$(is_mc_connected)
@@ -95,8 +97,9 @@ if [ $has_mc == 1 ] ; then
   btp=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_POINT)
   otp=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_POINT)
   if [ $btp == '0x00' ] && [ $otp == '0x00' ]; then
-    i2cset -y 0x01 $I2C_MC_ADDRESS $I2C_LM75B_THYST 0x004b w
-    i2cset -y 0x01 $I2C_MC_ADDRESS $I2C_LM75B_TOS 0x0050 w
+    # todo: use i2c_write
+    i2cset -y 0x00 $I2C_MC_ADDRESS $I2C_LM75B_THYST 0x004b w
+    i2cset -y 0x00 $I2C_MC_ADDRESS $I2C_LM75B_TOS 0x0050 w
   fi
 fi
 
@@ -152,7 +155,8 @@ fi
 # delay until GPIO pin state gets stable
 counter=0
 while [ $counter -lt 5 ]; do  # increase this value if it needs more time
-  if [ $(gpio -g read $HALT_PIN) == '1' ] ; then
+  #if [ $(gpio -g read $HALT_PIN) == '1' ] ; then
+  if [ $(gpio read $HALT_PIN) == '1' ] ; then # WiringPI naming convention
     counter=$(($counter+1))
   else
     counter=0
@@ -175,16 +179,21 @@ fi
 
 # indicates system is up
 log "Send out the SYS_UP signal via GPIO-$SYSUP_PIN pin."
-gpio -g mode $SYSUP_PIN out
-gpio -g write $SYSUP_PIN 1
+#gpio -g mode $SYSUP_PIN out
+#gpio -g write $SYSUP_PIN 1
+gpio mode $SYSUP_PIN out # wiringPI naming convention
+gpio write $SYSUP_PIN 1 # wiringPI naming convention
 sleep 0.1
-gpio -g write $SYSUP_PIN 0
+#gpio -g write $SYSUP_PIN 0
+gpio write $SYSUP_PIN 0 # wiringPI naming convention
 sleep 0.1
-gpio -g mode $SYSUP_PIN in
+#gpio -g mode $SYSUP_PIN in
+gpio mode $SYSUP_PIN in # wiringPI naming convention
 
 # wait for GPIO-4 (BCM naming) falling, or alarm 2 (shutdown)
 log 'Pending for incoming shutdown command...'
-gpio -g wfi $HALT_PIN falling
+#gpio -g wfi $HALT_PIN falling
+gpio wfi $HALT_PIN falling # use wiringPI naming convention...
 reason=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_ACTION_REASON)
 if [ "$reason" == $REASON_ALARM2 ]; then
   log 'Shutting down system because scheduled shutdown is due.'

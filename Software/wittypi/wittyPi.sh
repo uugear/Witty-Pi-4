@@ -7,7 +7,7 @@
 
 echo '================================================================================'
 echo '|                                                                              |'
-echo '|   Witty Pi - Realtime Clock + Power Management for Raspberry Pi              |'
+echo '|   Witty Pi - Software Modified for Banana Pi M5                              |'
 echo '|                                                                              |'
 echo '|            < Version 4.10 >     by Dun Cat B.V. (UUGear)                     |'
 echo '|                                                                              |'
@@ -20,7 +20,8 @@ if [ -z "$my_dir" ] ; then
   exit 1
 fi
 . $my_dir/utilities.sh
-. $my_dir/gpio-util.sh
+# to use wiringPI module, uncomment
+#. $my_dir/gpio-util.sh
 
 if [ $(is_mc_connected) -ne 1 ]; then
   echo ''
@@ -573,10 +574,10 @@ while true; do
 		  voltages+="Vin=$(printf %.02f $vin)V, "
 		fi
     voltages+="Vout=$(printf %.02f $vout)V, Iout=$(printf %.02f $iout)A"
-    
+   
     if [ $(($firmwareID)) -eq 55 ]; then
-      chrg=$(gpio -g read $CHRG_PIN)
-      stdby=$(gpio -g read $STDBY_PIN)
+      chrg=$(gpio read $CHRG_PIN)
+      stdby=$(gpio read $STDBY_PIN)
       if [ "$chrg" == "1" ] && [ "$stdby" == "1" ]; then
         voltages+=" (discharging battery...)"
       elif [ "$chrg" == "0" ] && [ "$stdby" == "1" ]; then
