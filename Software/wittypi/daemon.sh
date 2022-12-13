@@ -14,7 +14,7 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$cur_dir/gpio-util.sh"
 
 TIME_UNKNOWN=1
-log 'Witty Pi daemon (v4.00) is started.'
+log 'Witty Pi daemon (v4.10) is started.'
 
 # log Raspberry Pi model
 pi_model=$(cat /proc/device-tree/model)
@@ -58,6 +58,10 @@ done
 
 if [ $has_mc == 1 ] ; then
 
+  # make sure register I2C_RTC_CTRL1 is 0
+  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_RTC_CTRL1 0
+  
+  # synchronize system and RTC time
   if [ $(rtc_has_bad_time) == 1 ]; then
     log 'RTC has bad time, write system time into RTC'
     system_to_rtc
@@ -74,6 +78,9 @@ if [ $has_mc == 1 ] ; then
   # print out firmware ID
   firmwareID=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_ID)
   log "Firmware ID: $firmwareID"
+  # print out firmware revision
+  firmwareRev=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_FW_REVISION)
+  log "Firmware Revison: $firmwareRev"
   # print out current voltages and current
   vout=$(get_output_voltage)
   iout=$(get_output_current)
@@ -123,6 +130,8 @@ if [ $has_mc == 1 ] ; then
   elif [ "$reason" == $REASON_ALARM1_DELAYED ]; then
     log 'System starts up because of the scheduled startup got delayed.'
     log 'Maybe the scheduled startup was due when Pi was running, or Pi had been shut down but TXD stayed HIGH to prevent the power cut.'
+  elif [ "$reason" == $REASON_USB_5V_CONNECTED ]; then
+    log 'System starts up because USB 5V is connected.'
   else
     log "Unknown/incorrect startup reason: $reason"
   fi
@@ -130,6 +139,14 @@ if [ $has_mc == 1 ] ; then
 else
   log 'Witty Pi is not connected, skip I2C communications...'
   TIME_UNKNOWN=2
+fi
+
+# L3V7 only: make sure CHRG_PIN and STDBY_PIN are input with internal pull-up
+if [ $(($firmwareID)) -eq 55 ]; then
+  gpio -g mode $CHRG_PIN up
+  gpio -g mode $CHRG_PIN in
+  gpio -g mode $STDBY_PIN up
+  gpio -g mode $STDBY_PIN in
 fi
 
 # delay until GPIO pin state gets stable
