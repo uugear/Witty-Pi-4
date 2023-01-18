@@ -468,9 +468,8 @@ float updatePowerMode() {
   byte bk = ADCSRA;
   ADCSRA |= _BV(ADEN);
   float vin = getAdcVoltageAtPin(PIN_VIN);
-  float vout = getAdcVoltageAtPin(PIN_VOUT);
   ADCSRA = bk;  
-  updateRegister(I2C_POWER_MODE, (vin > vout) ? 1 : 0);
+  updateRegister(I2C_POWER_MODE, (vin > 5.25f) ? 1 : 0);
   return vin;
 }
 
