@@ -182,6 +182,8 @@ volatile byte skipPulseCount = 0;
 
 volatile boolean alarm1Delayed = false;
 
+volatile byte alarm1DelayedTriggerCount = 0;
+
 volatile byte ledUpTime = 0;
 
 SoftWireMaster softWireMaster;  // software I2C master
@@ -416,12 +418,6 @@ void sleep() {
 void cutPower() {
   powerIsOn = false;
   digitalWrite(PIN_CTRL, 0);
-  if (alarm1Delayed) {  // process delayed Alarm1 (startup)
-    alarm1Delayed = false;
-    delay(500);
-    updateRegister(I2C_ACTION_REASON, REASON_ALARM1_DELAYED);
-    emulateButtonClick();
-  }
 }
 
 
@@ -657,6 +653,17 @@ ISR (WDT_vect) {
 
   // adjust RTC
   adjustRTCIfNeeded();
+
+  // process delayed Alarm1 (startup)
+  if (!powerIsOn && alarm1Delayed) {
+    alarm1DelayedTriggerCount ++;
+    if (alarm1DelayedTriggerCount == 3) {
+      alarm1Delayed = false;
+      alarm1DelayedTriggerCount = 0;
+      updateRegister(I2C_ACTION_REASON, REASON_ALARM1_DELAYED);
+      emulateButtonClick();
+    }
+  }
 }
 
 
