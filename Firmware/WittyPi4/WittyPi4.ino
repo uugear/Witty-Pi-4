@@ -719,7 +719,7 @@ ISR (PCINT1_vect) {
       buttonPressed = false;
     }
     
-    if (powerIsOn && !turningOff && !systemIsUp && digitalRead(PIN_SYS_UP) == 1)  {  // system is up, PCINT8
+    if (powerIsOn && listenToTxd && !turningOff && !systemIsUp && digitalRead(PIN_SYS_UP) == 1)  {  // system is up, PCINT8
       
       // clear the low-voltage shutdown flag when sys_up signal arrives
       if (systemIsUp == false) {
