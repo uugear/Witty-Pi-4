@@ -183,7 +183,7 @@ volatile boolean isButtonClickEmulated = false;
 
 volatile byte skipPulseCount = 0;
 
-volatile boolean alarm1Delayed = false;
+volatile byte alarm1Delayed = 0;
 
 volatile byte ledUpTime = 0;
 
@@ -405,12 +405,6 @@ void sleep() {
 void cutPower() {
   powerIsOn = false;
   digitalWrite(PIN_CTRL, 0);
-  if (alarm1Delayed) {  // process delayed Alarm1 (startup)
-    alarm1Delayed = false;
-    delay(500);
-    updateRegister(I2C_ACTION_REASON, REASON_ALARM1_DELAYED);
-    emulateButtonClick();
-  }
 }
 
 
@@ -682,6 +676,16 @@ ISR (WDT_vect) {
 
   // adjust RTC
   adjustRTCIfNeeded();
+
+  // process delayed Alarm1 (startup)
+  if (!powerIsOn && alarm1Delayed > 0) {
+    alarm1Delayed ++;
+    if (alarm1Delayed == 4) {
+      alarm1Delayed = 0;
+      updateRegister(I2C_ACTION_REASON, REASON_ALARM1_DELAYED);
+      emulateButtonClick();
+    }
+  }
 }
 
 
@@ -864,7 +868,7 @@ void processAlarmIfNeeded() {
       updateRegister(I2C_ACTION_REASON, REASON_ALARM1);
       emulateButtonClick();
     } else {
-      alarm1Delayed = true; // power is not cut yet, will power on later
+      alarm1Delayed = 1; // power is not cut yet, will power on later
     }
   } else if (canTrigger && !alarm2HasTriggered && overdue_alarm2 >= 0 && overdue_alarm2 < 2) {  // Alarm 2: shutdown
     updateRegister(I2C_ALARM2_TRIGGERED, 1);
