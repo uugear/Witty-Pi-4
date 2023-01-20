@@ -180,7 +180,7 @@ volatile boolean isButtonClickEmulated = false;
 
 volatile byte skipPulseCount = 0;
 
-volatile boolean alarm1Delayed = 0;
+volatile byte alarm1Delayed = 0;
 
 volatile byte ledUpTime = 0;
 
