@@ -89,111 +89,128 @@ setup_on_state()
   set_shutdown_time $date $hour $minute $second
 }
 
-if [ -f $schedule_file ]; then
-  begin=0
-  end=0
-  count=0
-  while IFS='' read -r line || [[ -n "$line" ]]; do
-    cpos=`expr index "$line" \#`
-    if [ $cpos != 0 ]; then
-      line=${line:0:$cpos-1}
-    fi
-    line=$(trim "$line")
-    if [[ $line == BEGIN* ]]; then
-      begin=$(extract_timestamp "$line")
-    elif [[ $line == END* ]]; then
-      end=$(extract_timestamp "$line")
-    elif [ "$line" != "" ]; then
-      states[$count]=$(echo $line)
-      count=$((count+1))
-    fi
-  done < $schedule_file
+clear_startup_and_shutdown_time()
+{
+  log "Clearing startup time..."
+  clear_startup_time
+  log "Done clearing startup time"
+  log "Clearing shutdown time..."
+  clear_shutdown_time
+  log "Done clearing shutdown time"
+}
 
-  if [ $begin == 0 ] ; then
-    log 'I can not find the begin time in the script...'
-  elif [ $end == 0 ] ; then
-    log 'I can not find the end time in the script...'
-  elif [ $count == 0 ] ; then
-    log 'I can not find any state defined in the script.'
-  else
-    if [ $((cur_time < begin)) == '1' ] ; then
-      cur_time=$begin
-    fi
-    if [ $((cur_time >= end)) == '1' ] ; then
-      log 'The schedule script has ended already.'
-    else
-      schedule_script_interrupted
-      interrupted=$?	# should be 0 if scheduled startup is in the future and shutdown is in the pass
-      if [ ! -z "$2" ] && [ $interrupted == 0 ] ; then
-        log 'Schedule script is interrupted, revising the schedule...'
+if [ -f $schedule_file ]; then
+  if [ -s $schedule_file ]; then
+    # The file is not-empty.
+    begin=0
+    end=0
+    count=0
+    while IFS='' read -r line || [[ -n "$line" ]]; do
+      cpos=`expr index "$line" \#`
+      if [ $cpos != 0 ]; then
+        line=${line:0:$cpos-1}
       fi
-      index=0
-      found_states=0
-      check_time=$begin
-      script_duration=0
-      found_off=0
-      found_on=0
-      while [ $found_states != 2 ] && [ $((check_time < end)) == '1' ] ;
-      do
-        duration=$(extract_duration ${states[$index]})
-        check_time=$((check_time+duration))
-        if [ $found_off == 0 ] && [[ ${states[$index]} == OFF* ]] ; then
-          found_off=1
+      line=$(trim "$line")
+      if [[ $line == BEGIN* ]]; then
+        begin=$(extract_timestamp "$line")
+      elif [[ $line == END* ]]; then
+        end=$(extract_timestamp "$line")
+      elif [ "$line" != "" ]; then
+        states[$count]=$(echo $line)
+        count=$((count+1))
+      fi
+    done < $schedule_file
+
+    if [ $begin == 0 ] ; then
+      log 'I can not find the begin time in the script...'
+    elif [ $end == 0 ] ; then
+      log 'I can not find the end time in the script...'
+    elif [ $count == 0 ] ; then
+      log 'I can not find any state defined in the script.'
+    else
+      if [ $((cur_time < begin)) == '1' ] ; then
+        cur_time=$begin
+      fi
+      if [ $((cur_time >= end)) == '1' ] ; then
+        log 'The schedule script has ended already.'
+      else
+        schedule_script_interrupted
+        interrupted=$?	# should be 0 if scheduled startup is in the future and shutdown is in the pass
+        if [ ! -z "$2" ] && [ $interrupted == 0 ] ; then
+          log 'Schedule script is interrupted, revising the schedule...'
         fi
-        if [ $found_on == 0 ] && [[ ${states[$index]} == ON* ]] ; then
-          found_on=1
-        fi
-        # find the current ON state and incoming OFF state
-        if [ $((check_time >= cur_time)) == '1' ] && ([ $found_states == 1 ] || [[ ${states[$index]} == ON* ]]) ; then
-          found_states=$((found_states+1))
-          if [[ ${states[$index]} == ON* ]]; then
-            if [[ ${states[$index]} == *WAIT ]]; then
-              log 'Skip scheduling next shutdown, which should be done externally.'
-            else
-              if [ ! -z "$2" ] && [ $interrupted == 0 ] ; then
-                # schedule a shutdown 1 minute before next startup
-                setup_on_state $((check_time-duration-60))
+        index=0
+        found_states=0
+        check_time=$begin
+        script_duration=0
+        found_off=0
+        found_on=0
+        while [ $found_states != 2 ] && [ $((check_time < end)) == '1' ] ;
+        do
+          duration=$(extract_duration ${states[$index]})
+          check_time=$((check_time+duration))
+          if [ $found_off == 0 ] && [[ ${states[$index]} == OFF* ]] ; then
+            found_off=1
+          fi
+          if [ $found_on == 0 ] && [[ ${states[$index]} == ON* ]] ; then
+            found_on=1
+          fi
+          # find the current ON state and incoming OFF state
+          if [ $((check_time >= cur_time)) == '1' ] && ([ $found_states == 1 ] || [[ ${states[$index]} == ON* ]]) ; then
+            found_states=$((found_states+1))
+            if [[ ${states[$index]} == ON* ]]; then
+              if [[ ${states[$index]} == *WAIT ]]; then
+                log 'Skip scheduling next shutdown, which should be done externally.'
               else
-                setup_on_state $check_time
+                if [ ! -z "$2" ] && [ $interrupted == 0 ] ; then
+                  # schedule a shutdown 1 minute before next startup
+                  setup_on_state $((check_time-duration-60))
+                else
+                  setup_on_state $check_time
+                fi
+              fi
+            elif [[ ${states[$index]} == OFF* ]] ; then
+              if [[ ${states[$index]} == *WAIT ]]; then
+                log 'Skip scheduling next startup, which should be done externally.'
+              else
+                if [ ! -z "$2" ] && [ $interrupted == 0 ] && [ $index != 0 ] ; then
+                  # jump back to previous OFF state 
+                  prev_state=${states[$((index-1))]}
+                  prev_duration=$(extract_duration $prev_state)
+                  setup_off_state $((check_time-duration-prev_duration))
+                else
+                  setup_off_state $check_time
+                fi
+              fi
+            else
+              log "I can not recognize this state: ${states[$index]}"
+            fi
+          fi
+          index=$((index+1))
+          if [ $index == $count ] ; then
+            index=0
+            if [ $script_duration == 0 ] ; then
+              if [ $found_off == 0 ] ; then
+                log 'I need at least one OFF state in the script.'
+                check_time=$end     # skip all remaining cycles
+              elif [ $found_on == 0 ] ; then
+                log 'I need at least one ON state in the script.'
+                check_time=$end     # skip all remaining cycles
+              else
+                script_duration=$((check_time-begin))
+                skip=$((cur_time-check_time))
+                skip=$((skip-skip%script_duration))
+                check_time=$((check_time+skip))  # skip some useless cycles
               fi
             fi
-          elif [[ ${states[$index]} == OFF* ]] ; then
-            if [[ ${states[$index]} == *WAIT ]]; then
-              log 'Skip scheduling next startup, which should be done externally.'
-            else
-              if [ ! -z "$2" ] && [ $interrupted == 0 ] && [ $index != 0 ] ; then
-                # jump back to previous OFF state 
-                prev_state=${states[$((index-1))]}
-                prev_duration=$(extract_duration $prev_state)
-                setup_off_state $((check_time-duration-prev_duration))
-              else
-                setup_off_state $check_time
-              fi
-            fi
-          else
-            log "I can not recognize this state: ${states[$index]}"
           fi
-        fi
-        index=$((index+1))
-        if [ $index == $count ] ; then
-          index=0
-          if [ $script_duration == 0 ] ; then
-            if [ $found_off == 0 ] ; then
-              log 'I need at least one OFF state in the script.'
-              check_time=$end     # skip all remaining cycles
-            elif [ $found_on == 0 ] ; then
-              log 'I need at least one ON state in the script.'
-              check_time=$end     # skip all remaining cycles
-            else
-              script_duration=$((check_time-begin))
-              skip=$((cur_time-check_time))
-              skip=$((skip-skip%script_duration))
-              check_time=$((check_time+skip))  # skip some useless cycles
-            fi
-          fi
-        fi
-      done
+        done
+      fi
     fi
+  else
+    log "File \"schedule.wpi\" exists but is empty, clearing startup and shutdown time..."
+    clear_startup_and_shutdown_time
+    log "Done clearing startup and shutdown time."
   fi
 else
   log "File \"schedule.wpi\" not found, skip running schedule script."
