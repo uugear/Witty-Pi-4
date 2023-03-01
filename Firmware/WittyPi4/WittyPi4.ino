@@ -1,7 +1,7 @@
 /**
  * Firmware for WittyPi 4
  * 
- * Revision: 2
+ * Revision: 3
  */
  
 #define SDA_PIN 2
@@ -69,7 +69,7 @@
 #define I2C_CONF_PULSE_INTERVAL     18  // pulse interval (in seconds, for LED and dummy load): default=4 (4 sec)
 #define I2C_CONF_LOW_VOLTAGE        19  // low voltage threshold (x10), 255=disabled
 #define I2C_CONF_BLINK_LED          20  // how long the white LED should stay on (in ms), 0 if white LED should not blink.
-#define I2C_CONF_POWER_CUT_DELAY    21  // the delay (x10) before power cut: default=50 (5 sec)
+#define I2C_CONF_POWER_CUT_DELAY    21  // the delay (x10) before power cut: default=70 (7 sec)
 #define I2C_CONF_RECOVERY_VOLTAGE   22  // voltage (x10) that triggers recovery, 255=disabled
 #define I2C_CONF_DUMMY_LOAD         23  // how long the dummy load should be applied (in ms), 0 if dummy load is off.
 #define I2C_CONF_ADJ_VIN            24  // adjustment for measured Vin (x100), range from -127 to 127
@@ -160,8 +160,6 @@ volatile boolean systemIsUp = false;
 
 volatile boolean turningOff = false;
 
-volatile boolean forcePowerCut = false;
-
 volatile boolean wakeupByWatchdog = false;
 
 volatile boolean ledIsOn = false;
@@ -183,6 +181,12 @@ volatile byte skipPulseCount = 0;
 volatile byte alarm1Delayed = 0;
 
 volatile byte ledUpTime = 0;
+
+volatile byte lastButton = 1;
+
+volatile byte lastSystemUp = 0;
+
+volatile boolean turnOffFromTXD = false;
 
 SoftWireMaster softWireMaster;  // software I2C master
 
@@ -220,7 +224,7 @@ void setup() {
 
   // enable pin change interrupts
   GIMSK = _BV (PCIE0) | _BV (PCIE1);
-  PCMSK1 = _BV (PCINT8) | _BV (PCINT9); 
+  PCMSK1 = _BV (PCINT8) | _BV (PCINT9);
   PCMSK0 = _BV (PCINT5);
 
   // enable Timer1
@@ -244,38 +248,21 @@ void setup() {
 
 
 void loop() {
-  unsigned long curTime = micros();
-  if (voltageQueryTime > curTime || curTime - voltageQueryTime >= 1000000) {
-    voltageQueryTime = curTime;
-
-    // if input voltage is not fixed 5V, detect low voltage
-    if (powerIsOn && systemIsUp 
-        && (i2cReg[I2C_POWER_MODE] == 1 || i2cReg[I2C_CONF_IGNORE_POWER_MODE] == 1)
-        && (i2cReg[I2C_LV_SHUTDOWN] == 0 || i2cReg[I2C_CONF_IGNORE_LV_SHUTDOWN] == 1)
-        && i2cReg[I2C_CONF_LOW_VOLTAGE] != 255) {
-      float vin = getInputVoltage();
-      float vlow = ((float)i2cReg[I2C_CONF_LOW_VOLTAGE]) / 10;
-      if (vin < vlow) {  // input voltage is below the low voltage threshold
-        updateRegister(I2C_LV_SHUTDOWN, 1);
-        updateRegister(I2C_ACTION_REASON, REASON_LOW_VOLTAGE);
-        emulateButtonClick();
-      }
-    }
-  }
+  // we don't put anything here
 }
 
 
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
   i2cReg[I2C_ID] = 0x26;
-  i2cReg[I2C_FW_REVISION] = 0x02;
+  i2cReg[I2C_FW_REVISION] = 0x03;
   
   i2cReg[I2C_CONF_ADDRESS] = 0x08;
 
   i2cReg[I2C_CONF_PULSE_INTERVAL] = 4;
   i2cReg[I2C_CONF_LOW_VOLTAGE] = 255;
   i2cReg[I2C_CONF_BLINK_LED] = 100;
-  i2cReg[I2C_CONF_POWER_CUT_DELAY] = 50;
+  i2cReg[I2C_CONF_POWER_CUT_DELAY] = 70;
   i2cReg[I2C_CONF_RECOVERY_VOLTAGE] = 255;
 
   i2cReg[I2C_CONF_ADJ_VIN] = 20;
@@ -416,6 +403,7 @@ void sleep() {
 void cutPower() {
   powerIsOn = false;
   digitalWrite(PIN_CTRL, 0);
+  turnOffFromTXD = false;
 }
 
 
@@ -637,10 +625,13 @@ void requestEvent() {
 ISR (WDT_vect) {
   // turn off white LED after delay
   ledUpTime++;
-  if (ledUpTime == 5) {
+  if (ledUpTime == 3) {
     ledUpTime = 0;
     ledOff();
   }
+
+  // process low voltage
+  processLowVoltageIfNeeded();
 
   // handle temperature related actions
   handleTemperatureActtonsIfNeeded();
@@ -671,10 +662,11 @@ ISR (PCINT0_vect) {
       listenToTxd = true;
     }
   } else {
-    if (listenToTxd) {
+    if (listenToTxd && systemIsUp) {
      listenToTxd = false;
      systemIsUp = false;
      turningOff = true;
+     turnOffFromTXD = true;
      ledOff(); // turn off the white LED
      TCNT1 = getPowerCutPreloadTimer(true);
     }
@@ -684,18 +676,11 @@ ISR (PCINT0_vect) {
 
 // pin state change interrupt routine for PCINT1_vect (PCINT8~15)
 ISR (PCINT1_vect) {
-  // debounce
-  unsigned long prevTime = buttonStateChangeTime;
-  buttonStateChangeTime = micros();
-  if (buttonStateChangeTime - prevTime < 10) {
-    return;
-  }
-  
-  if (forcePowerCut) {
-    forcePowerCut = false;
-    sleep();
-  } else {
-    if (digitalRead(PIN_BUTTON) == 0) {   // button is pressed, PCINT9
+  byte button = digitalRead(PIN_BUTTON);
+  byte systemUp = digitalRead(PIN_SYS_UP);
+
+  if (button != lastButton) {
+    if (button == 0) {   // button is pressed, PCINT9
       // restore from emulated button clicking
       digitalWrite(PIN_BUTTON, 1);
       pinMode(PIN_BUTTON, INPUT_PULLUP);
@@ -703,36 +688,40 @@ ISR (PCINT1_vect) {
       // turn on the white LED
       ledOn();
       
-      wakeupByWatchdog = false; // will quit sleeping
-      
       if (!buttonPressed) {
         buttonPressed = true;
         if (!isButtonClickEmulated) {
           updateRegister(I2C_ACTION_REASON, REASON_CLICK);
         }
-        powerOn();
+        if (powerIsOn) {
+          if (systemIsUp) {
+            turningOff = true;
+            systemIsUp = false;
+          }
+        } else {
+          wakeupByWatchdog = false; // will quit sleeping
+          powerOn();
+        }
       }
       TCNT1 = getPowerCutPreloadTimer(true);
-
       isButtonClickEmulated = false;
     } else {  // button is released
       buttonPressed = false;
-    }
-    
-    if (powerIsOn && listenToTxd && !turningOff && !systemIsUp && digitalRead(PIN_SYS_UP) == 1)  {  // system is up, PCINT8
-      
+    } 
+  }
+  
+  if (systemUp != lastSystemUp) {
+    if (!ledIsOn && powerIsOn && !turningOff && !systemIsUp && systemUp == 1)  {  // system is up, PCINT8
       // clear the low-voltage shutdown flag when sys_up signal arrives
-      if (systemIsUp == false) {
-        updateRegister(I2C_LV_SHUTDOWN, 0);
-      }
-
+      updateRegister(I2C_LV_SHUTDOWN, 0);
+    
       // mark system is up
       systemIsUp = true;
-      
-      // turn off the white LED
-      ledOff();
     }
   }
+
+  lastButton = button;
+  lastSystemUp = systemUp;
 }
 
 
@@ -743,7 +732,7 @@ ISR (TIM1_OVF_vect) {
     TCNT1 = getPowerCutPreloadTimer(true);
     forcePowerCutIfNeeded();
     if (turningOff) {
-      if (digitalRead(PIN_TX_UP) == 1) {  // if it is rebooting
+      if (turnOffFromTXD && digitalRead(PIN_TX_UP) == 1) {  // if it is rebooting
         turningOff = false;
         ledOn();
       } else {  // cut the power and enter sleep
@@ -853,9 +842,11 @@ void processAlarmIfNeeded() {
   } else if (canTrigger && !alarm2HasTriggered && overdue_alarm2 >= 0 && overdue_alarm2 < 2) {  // Alarm 2: shutdown
     updateRegister(I2C_ALARM2_TRIGGERED, 1);
     updateRegister(I2C_CONF_FLAG_ALARM2, 1);
-    if (systemIsUp && !turningOff) {
+    if (powerIsOn && !turningOff) {
       updateRegister(I2C_ACTION_REASON, REASON_ALARM2);
       emulateButtonClick();
+      turningOff = true;
+      systemIsUp = false;
     }
   } else if (!alarm1HasTriggered && overdue_alarm1 < 0 && overdue_alarm1 >= -2) {
     reset_rtc_alarm();
@@ -911,10 +902,32 @@ void handleTemperatureActtonsIfNeeded() {
 }
 
 
+// process low voltage
+void processLowVoltageIfNeeded() {
+  // if input voltage is not fixed 5V, detect low voltage
+  if (powerIsOn && systemIsUp 
+      && (i2cReg[I2C_POWER_MODE] == 1 || i2cReg[I2C_CONF_IGNORE_POWER_MODE] == 1)
+      && (i2cReg[I2C_LV_SHUTDOWN] == 0 || i2cReg[I2C_CONF_IGNORE_LV_SHUTDOWN] == 1)
+      && i2cReg[I2C_CONF_LOW_VOLTAGE] != 255) {
+    float vin = getInputVoltage();
+    float vlow = ((float)i2cReg[I2C_CONF_LOW_VOLTAGE]) / 10;
+    if (vin < vlow) {  // input voltage is below the low voltage threshold
+      updateRegister(I2C_LV_SHUTDOWN, 1);
+      updateRegister(I2C_ACTION_REASON, REASON_LOW_VOLTAGE);
+      emulateButtonClick();
+      turningOff = true;
+      systemIsUp = false;
+    }
+  }
+}
+
+
 // turn off Raspberry Pi only if it is on
 void turnOffIfPowerOn() {
-  if (skipTempShutdownCount >= 120 && systemIsUp && !turningOff) {
+  if (skipTempShutdownCount >= 120 && powerIsOn && !turningOff) {
     emulateButtonClick();
+    turningOff = true;
+    systemIsUp = false;
   }
 }
 
@@ -964,9 +977,9 @@ long getTimestamp(byte date, byte hours, byte minutes, byte seconds) {
 // force power cut, if button is pressed and hold for a few seconds
 void forcePowerCutIfNeeded() {
  if (buttonPressed && digitalRead(PIN_BUTTON) == 0) {
-    forcePowerCut = true;
+    systemIsUp = false;
     cutPower();
-    ledOff();
+    sleep();
   }
 }
 
