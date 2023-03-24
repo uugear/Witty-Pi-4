@@ -172,8 +172,8 @@ get_sys_timestamp()
 
 rtc_has_bad_time()
 {
-  sec=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_SECONDS)
-  if [[ $sec > 0x7F ]]; then
+  year=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_YEARS)
+  if [[ $year -eq 0 ]]; then
     echo 1
   else
     echo 0

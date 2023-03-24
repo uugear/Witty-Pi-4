@@ -9,7 +9,7 @@ echo '==========================================================================
 echo '|                                                                              |'
 echo '|   Witty Pi - Realtime Clock + Power Management for Raspberry Pi              |'
 echo '|                                                                              |'
-echo '|            < Version 4.10 >     by Dun Cat B.V. (UUGear)                     |'
+echo '|            < Version 4.11 >     by Dun Cat B.V. (UUGear)                     |'
 echo '|                                                                              |'
 echo '================================================================================'
 
@@ -273,7 +273,7 @@ set_default_state()
 set_power_cut_delay()
 {
   local maxVal='8.0';
-	if [ $(($firmwareID)) -ge 53 ]; then
+	if [ $(($firmwareID)) -ge 38 ]; then
     maxVal='25.0'
   fi
   read -p "Input new delay (0.0~$maxVal: value in seconds): " delay
