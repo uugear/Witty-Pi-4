@@ -103,16 +103,16 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly REASON_ALARM1_DELAYED='0x08'
   readonly REASON_USB_5V_CONNECTED='0x09'
 
-  TIME_UNKNOWN=0
-fi
+  # config file
+  if [ "$(lsb_release -si)" == "Ubuntu" ]; then
+    # Ubuntu
+    readonly BOOT_CONFIG_FILE="/boot/firmware/usercfg.txt"
+  else
+    # Raspberry Pi OS ("$(lsb_release -si)" == "Debian") and others
+    readonly BOOT_CONFIG_FILE="/boot/config.txt"
+  fi
 
-# config file
-if [ "$(lsb_release -si)" == "Ubuntu" ]; then
-  # Ubuntu
-  readonly BOOT_CONFIG_FILE="/boot/firmware/usercfg.txt"
-else
-  # Raspberry Pi OS ("$(lsb_release -si)" == "Debian") and others
-  readonly BOOT_CONFIG_FILE="/boot/config.txt"
+  TIME_UNKNOWN=0
 fi
 
 
