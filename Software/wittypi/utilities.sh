@@ -106,21 +106,30 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   TIME_UNKNOWN=0
 fi
 
+# config file
+if [ "$(lsb_release -si)" == "Ubuntu" ]; then
+  # Ubuntu
+  readonly BOOT_CONFIG_FILE="/boot/firmware/usercfg.txt"
+else
+  # Raspberry Pi OS ("$(lsb_release -si)" == "Debian") and others
+  readonly BOOT_CONFIG_FILE="/boot/config.txt"
+fi
+
 
 one_wire_confliction()
 {
   if [[ $HALT_PIN -eq 4 ]]; then
-    if grep -qe "^\s*dtoverlay=w1-gpio\s*$" /boot/config.txt; then
+    if grep -qe "^\s*dtoverlay=w1-gpio\s*$" ${BOOT_CONFIG_FILE}; then
       return 0
     fi
-    if grep -qe "^\s*dtoverlay=w1-gpio-pullup\s*$" /boot/config.txt; then
+    if grep -qe "^\s*dtoverlay=w1-gpio-pullup\s*$" ${BOOT_CONFIG_FILE}; then
       return 0
     fi
   fi
-  if grep -qe "^\s*dtoverlay=w1-gpio,gpiopin=$HALT_PIN\s*$" /boot/config.txt; then
+  if grep -qe "^\s*dtoverlay=w1-gpio,gpiopin=$HALT_PIN\s*$" ${BOOT_CONFIG_FILE}; then
     return 0
   fi
-  if grep -qe "^\s*dtoverlay=w1-gpio-pullup,gpiopin=$HALT_PIN\s*$" /boot/config.txt; then
+  if grep -qe "^\s*dtoverlay=w1-gpio-pullup,gpiopin=$HALT_PIN\s*$" ${BOOT_CONFIG_FILE}; then
     return 0
   fi
   return 1
