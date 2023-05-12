@@ -153,7 +153,7 @@ get_network_timestamp()
 is_mc_connected()
 {
   local result=$(i2cdetect -y 1)
-  if [[ $result == *"$(printf '%02x')"* ]] ; then
+  if [[ $result == *"$(printf '%02x' $I2C_MC_ADDRESS)"* ]] ; then
     echo 1
   else
     echo 0
