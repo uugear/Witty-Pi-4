@@ -18,6 +18,15 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/wittypi"
 # error counter
 ERR=0
 
+# config file
+if [ "$(lsb_release -si)" == "Ubuntu" ]; then
+  # Ubuntu
+  BOOT_CONFIG_FILE="/boot/firmware/usercfg.txt"
+else
+  # Raspberry Pi OS ("$(lsb_release -si)" == "Debian") and others
+  BOOT_CONFIG_FILE="/boot/config.txt"
+fi
+
 echo '================================================================================'
 echo '|                                                                              |'
 echo '|                   Witty Pi Software Installation Script                      |'
@@ -37,42 +46,42 @@ else
   echo 'i2c-dev' >> /etc/modules
 fi
 
-i2c1=$(grep 'dtparam=i2c1=on' /boot/config.txt)
+i2c1=$(grep 'dtparam=i2c1=on' ${BOOT_CONFIG_FILE})
 i2c1=$(echo -e "$i2c1" | sed -e 's/^[[:space:]]*//')
 if [[ -z "$i2c1" || "$i2c1" == "#"* ]]; then
-  echo 'dtparam=i2c1=on' >> /boot/config.txt
+  echo 'dtparam=i2c1=on' >> ${BOOT_CONFIG_FILE}
 else
   echo 'Seems i2c1 parameter already set, skip this step.'
 fi
 
-i2c_arm=$(grep 'dtparam=i2c_arm=on' /boot/config.txt)
+i2c_arm=$(grep 'dtparam=i2c_arm=on' ${BOOT_CONFIG_FILE})
 i2c_arm=$(echo -e "$i2c_arm" | sed -e 's/^[[:space:]]*//')
 if [[ -z "$i2c_arm" || "$i2c_arm" == "#"* ]]; then
-  echo 'dtparam=i2c_arm=on' >> /boot/config.txt
+  echo 'dtparam=i2c_arm=on' >> ${BOOT_CONFIG_FILE}
 else
   echo 'Seems i2c_arm parameter already set, skip this step.'
 fi
 
-miniuart=$(grep 'dtoverlay=pi3-miniuart-bt' /boot/config.txt)
+miniuart=$(grep 'dtoverlay=pi3-miniuart-bt' ${BOOT_CONFIG_FILE})
 miniuart=$(echo -e "$miniuart" | sed -e 's/^[[:space:]]*//')
 if [[ -z "$miniuart" || "$miniuart" == "#"* ]]; then
-  echo 'dtoverlay=pi3-miniuart-bt' >> /boot/config.txt
+  echo 'dtoverlay=pi3-miniuart-bt' >> ${BOOT_CONFIG_FILE}
 else
   echo 'Seems setting Pi3 Bluetooth to use mini-UART is done already, skip this step.'
 fi
 
-miniuart=$(grep 'dtoverlay=miniuart-bt' /boot/config.txt)
+miniuart=$(grep 'dtoverlay=miniuart-bt' ${BOOT_CONFIG_FILE})
 miniuart=$(echo -e "$miniuart" | sed -e 's/^[[:space:]]*//')
 if [[ -z "$miniuart" || "$miniuart" == "#"* ]]; then
-  echo 'dtoverlay=miniuart-bt' >> /boot/config.txt
+  echo 'dtoverlay=miniuart-bt' >> ${BOOT_CONFIG_FILE}
 else
   echo 'Seems setting Bluetooth to use mini-UART is done already, skip this step.'
 fi
 
-core_freq=$(grep 'core_freq=250' /boot/config.txt)
+core_freq=$(grep 'core_freq=250' ${BOOT_CONFIG_FILE})
 core_freq=$(echo -e "$core_freq" | sed -e 's/^[[:space:]]*//')
 if [[ -z "$core_freq" || "$core_freq" == "#"* ]]; then
-  echo 'core_freq=250' >> /boot/config.txt
+  echo 'core_freq=250' >> ${BOOT_CONFIG_FILE}
 else
   echo 'Seems the frequency of GPU processor core is set to 250MHz already, skip this step.'
 fi
