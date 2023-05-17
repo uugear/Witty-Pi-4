@@ -180,6 +180,10 @@ gpio -g write $SYSUP_PIN 1
 sleep 0.1
 gpio -g write $SYSUP_PIN 0
 sleep 0.1
+gpio -g write $SYSUP_PIN 1
+sleep 0.1
+gpio -g write $SYSUP_PIN 0
+sleep 0.1
 gpio -g mode $SYSUP_PIN in
 
 # wait for GPIO-4 (BCM naming) falling, or alarm 2 (shutdown)
