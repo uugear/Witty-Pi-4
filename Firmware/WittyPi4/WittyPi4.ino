@@ -393,7 +393,6 @@ void sleep() {
   listenToTxd = false;
   systemIsUp = false;
   turningOff = false;
-  buttonPressed = true;
   powerOn();
   TCNT1 = getPowerCutPreloadTimer(true);
 }
