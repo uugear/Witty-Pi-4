@@ -14,7 +14,7 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$cur_dir/gpio-util.sh"
 
 TIME_UNKNOWN=1
-log 'Witty Pi daemon (v4.12) is started.'
+log 'Witty Pi daemon (v4.13) is started.'
 
 # log Raspberry Pi model
 pi_model=$(cat /proc/device-tree/model)
