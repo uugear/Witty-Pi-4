@@ -1,7 +1,7 @@
 /**
  * Firmware for WittyPi 4
  * 
- * Revision: 3
+ * Revision: 4
  */
  
 #define SDA_PIN 2
@@ -102,7 +102,7 @@
 #define I2C_CONF_OVER_TEMP_POINT    46  // set point for over temperature
 
 #define I2C_CONF_DEFAULT_ON_DELAY   47  // the delay (in second) between MCU initialization and turning on Raspberry Pi, when I2C_CONF_DEFAULT_ON = 1
-#define I2C_CONF_RFU_2              48  // reserve for future usage
+#define I2C_CONF_MISC               48  // 8 bits for miscellaneous configuration. bit-0: set to 1 to disable alarm1 (startup) delay
 #define I2C_CONF_RFU_3              49  // reserve for future usage
 
 #define I2C_REG_COUNT               50  // number of (non-virtual) I2C registers
@@ -255,7 +255,7 @@ void loop() {
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
   i2cReg[I2C_ID] = 0x26;
-  i2cReg[I2C_FW_REVISION] = 0x03;
+  i2cReg[I2C_FW_REVISION] = 0x04;
   
   i2cReg[I2C_CONF_ADDRESS] = 0x08;
 
@@ -836,7 +836,10 @@ void processAlarmIfNeeded() {
       updateRegister(I2C_ACTION_REASON, REASON_ALARM1);
       emulateButtonClick();
     } else {
-      alarm1Delayed = 1; // power is not cut yet, will power on later
+      // power is not cut yet, will power on later if alarm1 delay is allowed
+      if ((i2cReg[I2C_CONF_MISC] & 0x01) == 0) {
+        alarm1Delayed = 1;
+      }
     }
   } else if (canTrigger && !alarm2HasTriggered && overdue_alarm2 >= 0 && overdue_alarm2 < 2) {  // Alarm 2: shutdown
     updateRegister(I2C_ALARM2_TRIGGERED, 1);
