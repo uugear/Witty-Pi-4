@@ -1,7 +1,7 @@
 /**
  * Firmware for WittyPi 4 L3V7
  * 
- * Revision: 4
+ * Revision: 5
  */
  
 #define SDA_PIN 2
@@ -260,7 +260,7 @@ void initializeRegisters() {
   // firmware id: 0x37 (Witty Pi 4 L3V7)
   i2cReg[I2C_ID] = 0x37;  
   
-  i2cReg[I2C_FW_REVISION] = 0x04;
+  i2cReg[I2C_FW_REVISION] = 0x05;
   
   i2cReg[I2C_CONF_ADDRESS] = 0x08;
 
@@ -988,7 +988,7 @@ byte bcd2dec(byte bcd) {
 
 // get timestamp for given date and time
 long getTimestamp(byte date, byte hours, byte minutes, byte seconds) {
-  return date * 86400 + hours * 3600 + minutes * 60 + seconds;
+  return (long)date * 86400 + (long)hours * 3600 + (long)minutes * 60 + seconds;
 }
 
 
