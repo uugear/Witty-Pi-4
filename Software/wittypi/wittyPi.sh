@@ -2,12 +2,12 @@
 #!/bin/bash
 # file: wittyPi.sh
 #
-# Run this application to interactly configure your Witty Pi
+# Run this application to interactly configure your Witty Pi 4
 #
 
 echo '================================================================================'
 echo '|                                                                              |'
-echo '|   Witty Pi - Realtime Clock + Power Management for Raspberry Pi              |'
+echo '|   Witty Pi 4 - Realtime Clock + Power Management for Raspberry Pi              |'
 echo '|                                                                              |'
 echo '|            < Version 4.13 >     by Dun Cat B.V. (UUGear)                     |'
 echo '|                                                                              |'
@@ -24,7 +24,9 @@ fi
 
 if [ $(is_mc_connected) -ne 1 ]; then
   echo ''
-  log 'Seems Witty Pi board is not connected? Quitting...'
+  log 'No Board detected:'
+  log 'Could not detect a compatible Witty Pi 4 board, please attach the board and check the header pins are securely connected.'
+  log 'Quitting...'
   echo ''
   exit
 fi
@@ -47,11 +49,11 @@ fi
 synchronize_with_network_time()
 {
   if $(has_internet) ; then
-    log '  Internet detected, apply network time to system and Witty Pi...'
+    log '  Internet detected, applying network time to system and Witty Pi...'
     net_to_system
     system_to_rtc
   else
-    log '  Internet not accessible, skip time synchronization.'
+    log '  Internet not accessible, skipping time synchronization.'
   fi
 }
 
@@ -322,135 +324,135 @@ set_dummy_load_duration()
 set_vin_adjustment()
 {
 	read -p 'Input Vin adjustment (-1.27~1.27: value in volts): ' vinAdj
-  if (( $(awk "BEGIN {print ($vinAdj >= -1.27 && $vinAdj <= 1.27)}") )); then
-    local adj=$(calc $vinAdj*100)
-    if (( $(awk "BEGIN {print ($adj < 0)}") )); then
-    	adj=$((255+$adj))
-    fi
-    i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VIN ${adj%.*}
-    local setting=$(printf 'Vin adjustment set to %.2fV!\n' $vinAdj)
-    log "$setting" && sleep 2
-  else
-    echo 'Please input from -1.27 to 1.27 ...' && sleep 2
-  fi
+	if (( $(awk "BEGIN {print ($vinAdj >= -1.27 && $vinAdj <= 1.27)}") )); then
+		local adj=$(calc $vinAdj*100)
+		if (( $(awk "BEGIN {print ($adj < 0)}") )); then
+			adj=$((255+$adj))
+		fi
+		i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VIN ${adj%.*}
+		local setting=$(printf 'Vin adjustment set to %.2fV!\n' $vinAdj)
+		log "$setting" && sleep 2
+	else
+		echo 'Please input from -1.27 to 1.27 ...' && sleep 2
+	fi
 }
 
 set_vout_adjustment()
 {
 	read -p 'Input Vout adjustment (-1.27~1.27: value in volts): ' voutAdj
-  if (( $(awk "BEGIN {print ($voutAdj >= -1.27 && $voutAdj <= 1.27)}") )); then
-    local adj=$(calc $voutAdj*100)
-    if (( $(awk "BEGIN {print ($adj < 0)}") )); then
-    	adj=$((255+$adj))
-    fi
-    i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VOUT ${adj%.*}
-    local setting=$(printf 'Vout adjustment set to %.2fV!\n' $voutAdj)
-    log "$setting" && sleep 2
-  else
-    echo 'Please input from -1.27 to 1.27 ...' && sleep 2
-  fi
+	if (( $(awk "BEGIN {print ($voutAdj >= -1.27 && $voutAdj <= 1.27)}") )); then
+		local adj=$(calc $voutAdj*100)
+		if (( $(awk "BEGIN {print ($adj < 0)}") )); then
+			adj=$((255+$adj))
+		fi
+		i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VOUT ${adj%.*}
+		local setting=$(printf 'Vout adjustment set to %.2fV!\n' $voutAdj)
+		log "$setting" && sleep 2
+	else
+		echo 'Please input from -1.27 to 1.27 ...' && sleep 2
+	fi
 }
 
 set_iout_adjustment()
 {
 	read -p 'Input Iout adjustment (-1.27~1.27: value in amps): ' ioutAdj
-  if (( $(awk "BEGIN {print ($ioutAdj >= -1.27 && $ioutAdj <= 1.27)}") )); then
-    local adj=$(calc $ioutAdj*100)
-    if (( $(awk "BEGIN {print ($adj < 0)}") )); then
-    	adj=$((255+$adj))
-    fi
-    i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_IOUT ${adj%.*}
-    local setting=$(printf 'Iout adjustment set to %.2fA!\n' $ioutAdj)
-    log "$setting" && sleep 2
-  else
-    echo 'Please input from -1.27 to 1.27 ...' && sleep 2
-  fi
+	if (( $(awk "BEGIN {print ($ioutAdj >= -1.27 && $ioutAdj <= 1.27)}") )); then
+		local adj=$(calc $ioutAdj*100)
+		if (( $(awk "BEGIN {print ($adj < 0)}") )); then
+			adj=$((255+$adj))
+		fi
+		i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_IOUT ${adj%.*}
+		local setting=$(printf 'Iout adjustment set to %.2fA!\n' $ioutAdj)
+		log "$setting" && sleep 2
+	else
+		echo 'Please input from -1.27 to 1.27 ...' && sleep 2
+	fi
 }
 
 set_default_on_delay()
 {
-  if [ $(($firmwareRev)) -ge 2 ]; then
-    read -p 'Wait how many seconds before Auto-ON (0~10): ' delay
-  	if [ $delay -ge 0 ] && [ $delay -le 10 ]; then
-  	  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON_DELAY $delay
-  	  log "Default ON delay set to $delay seconds!" && sleep 2
-  	else
-  	  echo 'Please input from 0 to 10' && sleep 2
-  	fi
-  else
-    echo 'Please choose from 1 to 8';
-  fi
+	if [ $(($firmwareRev)) -ge 2 ]; then
+		read -p 'Wait how many seconds before Auto-ON (0~10): ' delay
+		if [ $delay -ge 0 ] && [ $delay -le 10 ]; then
+			i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON_DELAY $delay
+			log "Default ON delay set to $delay seconds!" && sleep 2
+		else
+			echo 'Please input from 0 to 10' && sleep 2
+		fi
+	else
+		echo 'Please choose from 1 to 8';
+	fi
 }
 
 other_settings()
 {
-  echo 'Here you can set:'
-  echo -n '  [1] Default state when powered'
-  local ds=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON)
-  if [[ $ds -eq 0 ]]; then
-    echo ' [default OFF]'
+	echo 'Here you can set:'
+	echo -n '  [1] Default state when powered'
+	local ds=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON)
+	if [[ $ds -eq 0 ]]; then
+		echo ' [default OFF]'
 	else
-    echo ' [default ON]'
-  fi
-  echo -n '  [2] Power cut delay after shutdown'
-  local pcd=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_POWER_CUT_DELAY)
-  pcd=$(calc $(($pcd))/10)
-  printf ' [%.1f Seconds]\n' "$pcd"
-  echo -n '  [3] Pulsing interval during sleep'
-  local pi=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_PULSE_INTERVAL)
-  pi=$(hex2dec $pi)
-  echo " [$pi Seconds]"
-  echo -n '  [4] White LED duration'
-  local led=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_BLINK_LED)
-  printf ' [%d]\n' "$led"
-  echo -n '  [5] Dummy load duration'
-  local dload=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DUMMY_LOAD)
-  printf ' [%d]\n' "$dload"
-  echo -n '  [6] Vin adjustment'
-  local vinAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VIN)
-  if [[ $vinAdj -gt 127 ]]; then
-  	vinAdj=$(calc $(($vinAdj-255))/100)
- 	else
- 		vinAdj=$(calc $(($vinAdj))/100)
-  fi
-  printf ' [%.2fV]\n' "$vinAdj"
-  echo -n '  [7] Vout adjustment'
-  local voutAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VOUT)
-  if [[ $voutAdj -gt 127 ]]; then
-  	voutAdj=$(calc $(($voutAdj-255))/100)
- 	else
- 		voutAdj=$(calc $(($voutAdj))/100)
-  fi
-  printf ' [%.2fV]\n' "$voutAdj"
-  echo -n '  [8] Iout adjustment'
-  local ioutAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_IOUT)
-  if [[ $ioutAdj -gt 127 ]]; then
-  	ioutAdj=$(calc $(($ioutAdj-255))/100)
+		echo ' [default ON]'
+	fi
+	echo -n '  [2] Power cut delay after shutdown'
+	local pcd=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_POWER_CUT_DELAY)
+	pcd=$(calc $(($pcd))/10)
+	printf ' [%.1f Seconds]\n' "$pcd"
+	echo -n '  [3] Pulsing interval during sleep'
+	local pi=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_PULSE_INTERVAL)
+	pi=$(hex2dec $pi)
+	echo " [$pi Seconds]"
+	echo -n '  [4] White LED duration'
+	local led=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_BLINK_LED)
+	printf ' [%d]\n' "$led"
+	echo -n '  [5] Dummy load duration'
+	local dload=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DUMMY_LOAD)
+	printf ' [%d]\n' "$dload"
+	echo -n '  [6] Vin adjustment'
+	local vinAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VIN)
+	if [[ $vinAdj -gt 127 ]]; then
+		vinAdj=$(calc $(($vinAdj-255))/100)
+	else
+		vinAdj=$(calc $(($vinAdj))/100)
+	fi
+	printf ' [%.2fV]\n' "$vinAdj"
+	echo -n '  [7] Vout adjustment'
+	local voutAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VOUT)
+	if [[ $voutAdj -gt 127 ]]; then
+		voutAdj=$(calc $(($voutAdj-255))/100)
+	else
+		voutAdj=$(calc $(($voutAdj))/100)
+	fi
+	printf ' [%.2fV]\n' "$voutAdj"
+	echo -n '  [8] Iout adjustment'
+	local ioutAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_IOUT)
+	if [[ $ioutAdj -gt 127 ]]; then
+  		ioutAdj=$(calc $(($ioutAdj-255))/100)
  	else
  		ioutAdj=$(calc $(($ioutAdj))/100)
-  fi
-  printf ' [%.2fA]\n' "$ioutAdj"
-  local optionCount=8;
-  if [ $(($firmwareRev)) -ge 2 ]; then
-    echo -n '  [9] Default ON delay'
-    local dod=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON_DELAY)
-    dod=$(hex2dec $dod)
-    echo " [$dod Seconds]"
-    optionCount=9;
-  fi
-  read -p "Which parameter to set? (1~$optionCount) " action
-  case $action in
-      [1]* ) set_default_state;;
-      [2]* ) set_power_cut_delay;;
-      [3]* ) set_pulsing_interval;;
-      [4]* ) set_white_led_duration;;
-      [5]* ) set_dummy_load_duration;;
-      [6]* ) set_vin_adjustment;;
-      [7]* ) set_vout_adjustment;;
-      [8]* ) set_iout_adjustment;;
-      [9]* ) set_default_on_delay;;
-      * ) echo "Please choose from 1 to $optionCount";;
-  esac
+	fi
+	printf ' [%.2fA]\n' "$ioutAdj"
+	local optionCount=8;
+	if [ $(($firmwareRev)) -ge 2 ]; then
+		echo -n '  [9] Default ON delay'
+		local dod=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON_DELAY)
+		dod=$(hex2dec $dod)
+		echo " [$dod Seconds]"
+		optionCount=9;
+	fi
+	read -p "Which parameter to set? (1~$optionCount) " action
+	case $action in
+		[1]* ) set_default_state;;
+		[2]* ) set_power_cut_delay;;
+		[3]* ) set_pulsing_interval;;
+		[4]* ) set_white_led_duration;;
+		[5]* ) set_dummy_load_duration;;
+		[6]* ) set_vin_adjustment;;
+		[7]* ) set_vout_adjustment;;
+		[8]* ) set_iout_adjustment;;
+		[9]* ) set_default_on_delay;;
+		* ) echo "Please choose from 1 to $optionCount";;
+	esac
 }
 
 reset_startup_time()
