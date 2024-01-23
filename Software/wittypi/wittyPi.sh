@@ -9,7 +9,7 @@ echo '==========================================================================
 echo '|                                                                              |'
 echo '|   Witty Pi - Realtime Clock + Power Management for Raspberry Pi              |'
 echo '|                                                                              |'
-echo '|            < Version 4.13 >     by Dun Cat B.V. (UUGear)                     |'
+echo '|            < Version 4.14 >     by Dun Cat B.V. (UUGear)                     |'
 echo '|                                                                              |'
 echo '================================================================================'
 
@@ -21,6 +21,14 @@ if [ -z "$my_dir" ] ; then
 fi
 . $my_dir/utilities.sh
 . $my_dir/gpio-util.sh
+
+if [ $(is_rpi5) -eq 1 ]; then
+  echo ''
+  echo 'This version of software does not support Raspberry Pi 5.'
+  echo '(newer version should use pinctrl to replace raspi-gpio)'
+  echo ''
+  exit
+fi
 
 if [ $(is_mc_connected) -ne 1 ]; then
   echo ''

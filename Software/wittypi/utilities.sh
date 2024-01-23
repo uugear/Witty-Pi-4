@@ -169,6 +169,26 @@ is_mc_connected()
   fi
 }
 
+get_pi_model()
+{
+  IFS= read -r -d '' model </proc/device-tree/model
+  echo $model;
+}
+
+is_rpi5()
+{
+  if [ -z "$1" ]; then
+    local model=$(get_pi_model)
+  else
+    local model=$1
+  fi
+  if [[ $model == *"Raspberry Pi 5"* ]]; then
+    echo 1
+  else
+    echo 0
+  fi
+}
+
 get_sys_time()
 {
   echo $(date +'%Y-%m-%d %H:%M:%S %Z')

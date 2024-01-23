@@ -14,11 +14,18 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$cur_dir/gpio-util.sh"
 
 TIME_UNKNOWN=1
-log 'Witty Pi daemon (v4.13) is started.'
+log 'Witty Pi daemon (v4.14) is started.'
 
 # log Raspberry Pi model
-pi_model=$(cat /proc/device-tree/model)
+pi_model=$(get_pi_model)
 log "Running on $pi_model"
+
+# log information for Pi 5 users and exit
+if [ $(is_rpi5 "$pi_model") -eq 1 ]; then
+  log 'This version of software does not support Raspberry Pi 5.'
+  log '(newer version should use pinctrl to replace raspi-gpio)'
+  exit
+fi
 
 # log NOOBS version, if exists
 if [[ ! -d "$cur_dir/tmp" ]]; then

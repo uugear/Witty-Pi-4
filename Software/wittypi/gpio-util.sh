@@ -1,11 +1,11 @@
 #!/bin/bash
 #
 # file: gpio-util.sh
-# version: 0.71
+# version: 0.72
 # author: Dun Cat B.V.
 #
-# This file defines a BASH function named "gpio", which can be used like a 
-# simplified version of "gpio" utility in wiringPi library. Please do not 
+# This file defines a BASH function named "gpio", which can be used like a
+# simplified version of "gpio" utility in wiringPi library. Please do not
 # expect the same performance as the real "gpio" utility in wiringPi.
 #
 # Usage:
@@ -86,10 +86,10 @@ readonly PHY_BCM=(
 # mapping physical pins to WiringPi pins
 readonly PHY_WPI=(
   -1
-  -1	-1  #  1-2 
-   8	-1  #  3-4 
-   9	-1  #  5-6 
-   7	15  #  7-8 
+  -1	-1  #  1-2
+   8	-1  #  3-4
+   9	-1  #  5-6
+   7	15  #  7-8
   -1	16  #  9-10
    0	1   # 11-12
    2	-1  # 13-14
@@ -111,10 +111,10 @@ readonly PHY_WPI=(
 # pin names (ordered by physical pin number)
 readonly PHY_NAMES=(
   ''
-  '   3.3v'  '5v     '  #  1-2 
-  '  SDA.1'  '5v     '  #  3-4 
-  '  SCL.1'  '0v     '  #  5-6 
-  'GPIO. 7'  'TxD    '  #  7-8 
+  '   3.3v'  '5v     '  #  1-2
+  '  SDA.1'  '5v     '  #  3-4
+  '  SCL.1'  '0v     '  #  5-6
+  'GPIO. 7'  'TxD    '  #  7-8
   '     0v'  'RxD    '  #  9-10
   'GPIO. 0'  'GPIO. 1'  # 11-12
   'GPIO. 2'  '0v     '  # 13-14
@@ -174,7 +174,7 @@ gpio()
 
 doVersion()
 {
-  echo 'Emulated gpio version: 0.71'
+  echo 'Emulated gpio version: 0.72'
   echo 'Thank Gordon Henderson for the great work on WiringPi'
   echo 'Copyright (c) Dun Cat B.V. (UUGear)'
   echo 'This is free software with ABSOLUTELY NO WARRANTY.'
@@ -228,7 +228,7 @@ doRead()
   else
     pin=$2
   fi
-  raspi-gpio get $pin | sed 's/.*level=//' | sed 's/ fsel=.*//'
+  raspi-gpio get $pin | head -1 | sed 's/.*level=//' | sed 's/[^0-9].*$//'
 }
 
 
@@ -249,7 +249,7 @@ doWrite()
 
 
 doWfi()
-{  
+{
   if [[ $naming -eq $PHYSICAL ]]; then
     pin=${PHY_BCM["$2"]}
   else
@@ -262,8 +262,8 @@ doWfi()
     local prev=$(doRead '' $pin)
     while [[ $running -eq 1 ]]; do
 	  local cur=$(doRead '' $pin)
-	  if [[ ($edge == 'both' && $prev -ne $cur) 
-	     || ($edge == 'falling' && $prev -eq 1 && $cur -eq 0) 
+	  if [[ ($edge == 'both' && $prev -ne $cur)
+	     || ($edge == 'falling' && $prev -eq 1 && $cur -eq 0)
 		 || ($edge == 'rising' && $prev -eq 0 && $cur -eq 1) ]]; then
 	    running=0
 	  fi
@@ -279,14 +279,14 @@ GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 getPin = subprocess.run(['printf', '$pin'], stdout=subprocess.PIPE)
 pin = int(getPin.stdout.decode('utf-8'))
-getPull = subprocess.run(['printf', '${PIN_PULL["$pin"]}'], stdout=subprocess.PIPE) 
+getPull = subprocess.run(['printf', '${PIN_PULL["$pin"]}'], stdout=subprocess.PIPE)
 pull = getPull.stdout.decode('utf-8')
 if pull == 'down':
   pull = GPIO.PUD_DOWN
 else:
   pull = GPIO.PUD_UP
 GPIO.setup(pin, GPIO.IN, pull)
-getEdge = subprocess.run(['printf', '$edge'], stdout=subprocess.PIPE) 
+getEdge = subprocess.run(['printf', '$edge'], stdout=subprocess.PIPE)
 edge = getEdge.stdout.decode('utf-8')
 if edge == 'rising':
   edge = GPIO.RISING
@@ -349,12 +349,12 @@ doReadAll()
     echo "Sorry, readall does not support this model: $model"
     return
   fi
-  
+
   echo " +-----+-----+---------+------+---+${PI_MODELS[$model]}+---+------+---------+-----+-----+"
   echo ' | BCM | wPi |   Name  | Mode | V | Physical | V | Mode | Name    | wPi | BCM |'
   echo ' +-----+-----+---------+------+---+----++----+---+------+---------+-----+-----+'
-  
-  for ((i = 1 ; i < 40 ; i+=2)); do             
+
+  for ((i = 1 ; i < 40 ; i+=2)); do
     local pin1=$(printf %2d $i)
     local pin2=$(printf %-2d $(($i+1)))
     local bcm1=${PHY_BCM[$pin1]}
@@ -365,11 +365,21 @@ doReadAll()
       local v1=' '
       local m1='    '
     else
-      local info1=$(raspi-gpio get $bcm1)
+      local info1=$(raspi-gpio get $bcm1 | head -1)
       bcm1=$(printf %3d $bcm1)
       wpi1=$(printf %3d $wpi1)
-      local v1=$(echo $info1 | sed 's/^.*level=//' | sed 's/ fsel=.*$//')
-      local m1=$(align_right ${MODES[$(echo $info1 | sed 's/^.*fsel=//' | sed 's/ .*$//')]} 4)
+      local v1=$(echo $info1 | sed 's/^.*level=//' | sed 's/[^0-9].*$//')
+      if [[ $info1 == *"fsel="* ]]; then
+        local m1=$(align_right ${MODES[$(echo $info1 | sed 's/^.*fsel=//' | sed 's/ .*$//')]} 4)
+      elif [[ $info1 == *"alt="* ]]; then
+        local m1=$(align_right $(echo -n 'ALT'; echo $info1 | sed 's/^.*alt=//' | sed 's/ .*$//') 4)
+      elif [[ $info1 == *"INPUT"* ]]; then
+        local m1='  IN'
+      elif [[ $info1 == *"OUTPUT"* ]]; then
+        local m1=' OUT'
+      else
+        local m1='   ?'
+      fi
     fi
     local bcm2=${PHY_BCM[$pin2]}
     local wpi2=${PHY_WPI[$pin2]}
@@ -379,16 +389,26 @@ doReadAll()
       local v2=' '
       local m2='    '
     else
-      local info2=$(raspi-gpio get $bcm2)
+      local info2=$(raspi-gpio get $bcm2 | head -1)
       bcm2=$(printf %-3d $bcm2)
       wpi2=$(printf %-3d $wpi2)
-      local v2=$(echo $info2 | sed 's/^.*level=//' | sed 's/ fsel=.*$//')
-      local m2=$(align_left ${MODES[$(echo $info2 | sed 's/^.*fsel=//' | sed 's/ .*$//')]} 4)
+      local v2=$(echo $info2 | sed 's/^.*level=//' | sed 's/[^0-9].*$//')
+      if [[ $info2 == *"fsel="* ]]; then
+        local m2=$(align_left ${MODES[$(echo $info2 | sed 's/^.*fsel=//' | sed 's/ .*$//')]} 4)
+      elif [[ $info2 == *"alt="* ]]; then
+        local m2=$(align_left $(echo -n 'ALT'; echo $info2 | sed 's/^.*alt=//' | sed 's/ .*$//') 4)
+      elif [[ $info2 == *"INPUT"* ]]; then
+        local m2='IN  '
+      elif [[ $info2 == *"OUTPUT"* ]]; then
+        local m2='OUT '
+      else
+        local m2='?   '
+      fi
     fi
     echo " | $bcm1 | $wpi1 | ${PHY_NAMES[$pin1]} | $m1 | $v1 | $pin1 || $pin2 | $v2 | $m2 | ${PHY_NAMES[$pin2]} | $wpi2 | $bcm2 |"                        
-  done                             
-  
-  echo ' +-----+-----+---------+------+---+----++----+---+------+---------+-----+-----+'  
+  done
+
+  echo ' +-----+-----+---------+------+---+----++----+---+------+---------+-----+-----+'
   echo ' | BCM | wPi |   Name  | Mode | V | Physical | V | Mode | Name    | wPi | BCM |'
   echo " +-----+-----+---------+------+---+${PI_MODELS[$model]}+---+------+---------+-----+-----+"
 }
