@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # file: gpio-util.sh
-# version: 0.72
+# version: 0.73
 # author: Dun Cat B.V.
 #
 # This file defines a BASH function named "gpio", which can be used like a
@@ -256,8 +256,8 @@ doWfi()
     pin=$2
   fi
   edge=$3
-  if ! python3 -c "import RPi.GPIO" > /dev/null 2>&1 ; then
-    echo 'Python 3 or RPi.GPIO for Python 3 is not installed, using less efficient implementation now.'
+  if ! python3 -c "import gpiozero" > /dev/null 2>&1 ; then
+    echo 'Python 3 or GPIO Zero for Python 3 is not installed, using less efficient implementation now.'
     local running=1
     local prev=$(doRead '' $pin)
     while [[ $running -eq 1 ]]; do
@@ -273,28 +273,18 @@ doWfi()
   else
 # Python Code Begins
 python3 - << EOF
-import RPi.GPIO as GPIO
+from gpiozero import Button
 import subprocess
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BCM)
 getPin = subprocess.run(['printf', '$pin'], stdout=subprocess.PIPE)
 pin = int(getPin.stdout.decode('utf-8'))
 getPull = subprocess.run(['printf', '${PIN_PULL["$pin"]}'], stdout=subprocess.PIPE)
 pull = getPull.stdout.decode('utf-8')
 if pull == 'down':
-  pull = GPIO.PUD_DOWN
+  pull = False
 else:
-  pull = GPIO.PUD_UP
-GPIO.setup(pin, GPIO.IN, pull)
-getEdge = subprocess.run(['printf', '$edge'], stdout=subprocess.PIPE)
-edge = getEdge.stdout.decode('utf-8')
-if edge == 'rising':
-  edge = GPIO.RISING
-elif edge == 'falling':
-  edge = GPIO.FALLING
-else:
-  edge = GPIO.BOTH
-GPIO.wait_for_edge(pin, edge)
+  pull = True
+btn = Button(pin, pull_up=pull)
+btn.wait_for_press()
 EOF
 # Python Code Ends
   fi
