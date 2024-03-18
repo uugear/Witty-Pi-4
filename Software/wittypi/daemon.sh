@@ -14,7 +14,7 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$cur_dir/gpio-util.sh"
 
 TIME_UNKNOWN=1
-log 'Witty Pi daemon (v4.14) is started.'
+log 'Witty Pi daemon (v4.15) is started.'
 
 # log Raspberry Pi model
 pi_model=$(get_pi_model)
@@ -117,7 +117,7 @@ if [ $has_mc == 1 ] ; then
   elif [ "$flag2" == "1" ] ; then
     # woke up by alarm 2 (shutdown), turn it off immediately, this should never happen
     log 'Seems I was unexpectedly woken up by shutdown alarm, must go back to sleep...'
-    do_shutdown $HALT_PIN
+    do_shutdown $HALT_PIN $has_mc
   fi
   clear_alarm_flags
 
@@ -196,27 +196,32 @@ gpio -g mode $SYSUP_PIN in
 # wait for GPIO-4 (BCM naming) falling, or alarm 2 (shutdown)
 log 'Pending for incoming shutdown command...'
 gpio -g wfi $HALT_PIN falling
-reason=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_ACTION_REASON)
-if [ "$reason" == $REASON_ALARM2 ]; then
-  log 'Shutting down system because scheduled shutdown is due.'
-elif [ "$reason" == $REASON_CLICK ]; then
-  log "Shutting down system because button is clicked or GPIO-$HALT_PIN is pulled down."
-elif [ "$reason" == $REASON_LOW_VOLTAGE ]; then
-  vin=$(get_input_voltage)
-  vlow=$(get_low_voltage_threshold)
-  log "Shutting down system because input voltge is too low: Vin=${vin}V, Vlow=${vlow}"
-elif [ "$reason" == $REASON_OVER_TEMPERATURE ]; then
-  log 'Shutting down system because over temperature.'
-  log "$(get_temperature)"
-elif [ "$reason" == $REASON_BELOW_TEMPERATURE ]; then
-  log 'Shutting down system because below temperature.'
-  log "$(get_temperature)"
+
+if [ $has_mc == 1 ] ; then
+  reason=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_ACTION_REASON)
+  if [ "$reason" == $REASON_ALARM2 ]; then
+    log 'Shutting down system because scheduled shutdown is due.'
+  elif [ "$reason" == $REASON_CLICK ]; then
+    log "Shutting down system because button is clicked or GPIO-$HALT_PIN is pulled down."
+  elif [ "$reason" == $REASON_LOW_VOLTAGE ]; then
+    vin=$(get_input_voltage)
+    vlow=$(get_low_voltage_threshold)
+    log "Shutting down system because input voltge is too low: Vin=${vin}V, Vlow=${vlow}"
+  elif [ "$reason" == $REASON_OVER_TEMPERATURE ]; then
+    log 'Shutting down system because over temperature.'
+    log "$(get_temperature)"
+  elif [ "$reason" == $REASON_BELOW_TEMPERATURE ]; then
+    log 'Shutting down system because below temperature.'
+    log "$(get_temperature)"
+  else
+    log "Unknown/incorrect shutdown reason: $reason"
+  fi
 else
-  log "Unknown/incorrect shutdown reason: $reason"
+  log 'Witty Pi is not connected, skip I2C communications...'
 fi
 
 # run beforeShutdown.sh
 "$cur_dir/beforeShutdown.sh" >> "$cur_dir/wittyPi.log" 2>&1
 
 # shutdown Raspberry Pi
-do_shutdown $HALT_PIN
+do_shutdown $HALT_PIN $has_mc
