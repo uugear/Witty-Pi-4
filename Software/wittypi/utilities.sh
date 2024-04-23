@@ -175,18 +175,19 @@ get_pi_model()
   echo $model;
 }
 
-is_rpi5()
+get_os()
 {
-  if [ -z "$1" ]; then
-    local model=$(get_pi_model)
-  else
-    local model=$1
-  fi
-  if [[ $model == *"Raspberry Pi 5"* ]]; then
-    echo 1
-  else
-    echo 0
-  fi
+  echo $(hostnamectl | grep 'Operating System:' | sed 's/.*Operating System: //')
+}
+
+get_kernel()
+{
+  echo $(uname -sr)
+}
+
+get_arch()
+{
+  echo $(dpkg --print-architecture)
 }
 
 get_sys_time()

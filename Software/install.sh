@@ -24,7 +24,11 @@ if [ "$(lsb_release -si)" == "Ubuntu" ]; then
   BOOT_CONFIG_FILE="/boot/firmware/usercfg.txt"
 else
   # Raspberry Pi OS ("$(lsb_release -si)" == "Debian") and others
-  BOOT_CONFIG_FILE="/boot/config.txt"
+  if [ -e /boot/firmware/config.txt ] ; then
+    BOOT_CONFIG_FILE="/boot/firmware/config.txt"
+  else
+    BOOT_CONFIG_FILE="/boot/config.txt"
+  fi
 fi
 
 echo '================================================================================'
@@ -62,28 +66,12 @@ else
   echo 'Seems i2c_arm parameter already set, skip this step.'
 fi
 
-miniuart=$(grep 'dtoverlay=pi3-miniuart-bt' ${BOOT_CONFIG_FILE})
-miniuart=$(echo -e "$miniuart" | sed -e 's/^[[:space:]]*//')
-if [[ -z "$miniuart" || "$miniuart" == "#"* ]]; then
-  echo 'dtoverlay=pi3-miniuart-bt' >> ${BOOT_CONFIG_FILE}
-else
-  echo 'Seems setting Pi3 Bluetooth to use mini-UART is done already, skip this step.'
-fi
-
 miniuart=$(grep 'dtoverlay=miniuart-bt' ${BOOT_CONFIG_FILE})
 miniuart=$(echo -e "$miniuart" | sed -e 's/^[[:space:]]*//')
 if [[ -z "$miniuart" || "$miniuart" == "#"* ]]; then
   echo 'dtoverlay=miniuart-bt' >> ${BOOT_CONFIG_FILE}
 else
   echo 'Seems setting Bluetooth to use mini-UART is done already, skip this step.'
-fi
-
-core_freq=$(grep 'core_freq=250' ${BOOT_CONFIG_FILE})
-core_freq=$(echo -e "$core_freq" | sed -e 's/^[[:space:]]*//')
-if [[ -z "$core_freq" || "$core_freq" == "#"* ]]; then
-  echo 'core_freq=250' >> ${BOOT_CONFIG_FILE}
-else
-  echo 'Seems the frequency of GPU processor core is set to 250MHz already, skip this step.'
 fi
 
 if [ -f /etc/modprobe.d/raspi-blacklist.conf ]; then
@@ -98,17 +86,40 @@ echo '>>> Install i2c-tools'
 if hash i2cget 2>/dev/null; then
   echo 'Seems i2c-tools is installed already, skip this step.'
 else
-  apt-get install -y i2c-tools || ((ERR++))
+  apt install -y i2c-tools || ((ERR++))
 fi
 
 # make sure en_GB.UTF-8 locale is installed
 echo '>>> Make sure en_GB.UTF-8 locale is installed'
 locale_commentout=$(sed -n 's/\(#\).*en_GB.UTF-8 UTF-8/1/p' /etc/locale.gen)
 if [[ $locale_commentout -ne 1 ]]; then
-	echo 'Seems en_GB.UTF-8 locale has been installed, skip this step.'
+  echo 'Seems en_GB.UTF-8 locale has been installed, skip this step.'
 else
-	sed -i.bak 's/^.*\(en_GB.UTF-8[[:blank:]]\+UTF-8\)/\1/' /etc/locale.gen
-	locale-gen
+  sed -i.bak 's/^.*\(en_GB.UTF-8[[:blank:]]\+UTF-8\)/\1/' /etc/locale.gen
+  locale-gen
+fi
+
+# install wiringPi
+if hash gpio 2>/dev/null; then
+  echo 'Seems wiringPi has been installed, skip this step.'
+else
+  os=$(lsb_release -r | grep 'Release:' | sed 's/Release:\s*//')
+  if [ $os -le 10 ]; then
+    apt install -y wiringpi || ((ERR++))
+  elif [ $os -eq 11 ]; then
+    wget https://github.com/WiringPi/WiringPi/releases/download/3.2/wiringpi_3.2-bullseye_armhf.deb -O wiringpi.deb || ((ERR++))
+    apt install -y ./wiringpi.deb || ((ERR++))
+    rm wiringpi.deb
+  else
+    arch=$(dpkg --print-architecture)
+    if [ "$arch" == "arm64" ]; then
+      wget https://github.com/WiringPi/WiringPi/releases/download/3.2/wiringpi_3.2_arm64.deb -O wiringpi.deb || ((ERR++))
+    else
+      wget https://github.com/WiringPi/WiringPi/releases/download/3.2/wiringpi_3.2_armhf.deb -O wiringpi.deb || ((ERR++))
+    fi
+    apt install -y ./wiringpi.deb || ((ERR++))
+    rm wiringpi.deb
+  fi
 fi
 
 # install wittyPi

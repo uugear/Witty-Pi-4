@@ -9,7 +9,7 @@ echo '==========================================================================
 echo '|                                                                              |'
 echo '|   Witty Pi - Realtime Clock + Power Management for Raspberry Pi              |'
 echo '|                                                                              |'
-echo '|            < Version 4.15 >     by Dun Cat B.V. (UUGear)                     |'
+echo '|            < Version 4.2 >     by Dun Cat B.V. (UUGear)                     |'
 echo '|                                                                              |'
 echo '================================================================================'
 
@@ -20,15 +20,6 @@ if [ -z "$my_dir" ] ; then
   exit 1
 fi
 . $my_dir/utilities.sh
-. $my_dir/gpio-util.sh
-
-if [ $(is_rpi5) -eq 1 ]; then
-  echo ''
-  echo 'This version of software does not support Raspberry Pi 5.'
-  echo '(newer version should use pinctrl to replace raspi-gpio)'
-  echo ''
-  exit
-fi
 
 if [ $(is_mc_connected) -ne 1 ]; then
   echo ''
@@ -44,6 +35,14 @@ if one_wire_confliction ; then
 	log 'You may solve this confliction by moving 1-Wire interface to another GPIO pin.'
 	echo ''
 	exit
+fi
+
+# do not run further if wiringPi is not installed
+if ! hash gpio 2>/dev/null; then
+  echo ''
+  log 'Seems wiringPi is not installed, please run again the latest installation script to fix this.'
+  echo ''
+  exit
 fi
 
 if [ $(is_mc_connected) -eq 1 ]; then

@@ -10,38 +10,29 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # utilities
 . "$cur_dir/utilities.sh"
 
-# GPIO utilites
-. "$cur_dir/gpio-util.sh"
-
 TIME_UNKNOWN=1
-log 'Witty Pi daemon (v4.15) is started.'
+log 'Witty Pi daemon (v4.2) is started.'
+
+# system information
+os=$(get_os)
+kernel=$(get_kernel)
+arch=$(get_arch)
+log "System: $os, Kernel: $kernel, Architecture: $arch"
 
 # log Raspberry Pi model
 pi_model=$(get_pi_model)
 log "Running on $pi_model"
 
-# log information for Pi 5 users and exit
-if [ $(is_rpi5 "$pi_model") -eq 1 ]; then
-  log 'This version of software does not support Raspberry Pi 5.'
-  log '(newer version should use pinctrl to replace raspi-gpio)'
-  exit
-fi
-
-# log NOOBS version, if exists
-if [[ ! -d "$cur_dir/tmp" ]]; then
-  mkdir "$cur_dir/tmp"
-fi
-mount /dev/mmcblk0p1 "$cur_dir/tmp"
-noobs_ver=$(cat "$cur_dir/tmp/BUILD-DATA" | grep 'NOOBS Version:')
-if [ ! -z "$noobs_ver" ]; then
-  log "$noobs_ver"
-fi
-umount "$cur_dir/tmp"
-
 # check 1-wire confliction
 if one_wire_confliction ; then
   log "Confliction: 1-Wire interface is enabled on GPIO-$HALT_PIN, which is also used by Witty Pi."
   log 'Witty Pi daemon can not work until you solve this confliction and reboot Raspberry Pi.'
+  exit
+fi
+
+# do not run further if wiringPi is not installed
+if ! hash gpio 2>/dev/null; then
+  log 'Seems wiringPi is not installed, please run again the latest installation script to fix this.'
   exit
 fi
 
