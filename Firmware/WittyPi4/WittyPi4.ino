@@ -55,7 +55,7 @@
 #define I2C_LV_SHUTDOWN             8   // 1 if system was shutdown by low voltage, otherwise 0
 #define I2C_ALARM1_TRIGGERED        9   // 1 if alarm1 (startup) has been triggered
 #define I2C_ALARM2_TRIGGERED        10  // 1 if alarm2 (shutdown) has been triggered
-#define I2C_ACTION_REASON           11  // the latest action reason: 1-alarm1; 2-alarm2; 3-click; 4-low voltage; 5-voltage restored; 6-over temperature; 7-below temperature; 8-alarm1 delayed
+#define I2C_ACTION_REASON           11  // the latest action reason: 1-alarm1; 2-alarm2; 3-click; 4-low voltage; 5-voltage restored; 6-over temperature; 7-below temperature; 8-alarm1 delayed; 10-power connected; 11-reboot
 #define I2C_FW_REVISION             12  // the firmware revision
 #define I2C_RFU_1                   13  // reserve for future usage
 #define I2C_RFU_2                   14  // reserve for future usage
@@ -145,6 +145,8 @@
 #define REASON_OVER_TEMPERATURE   6
 #define REASON_BELOW_TEMPERATURE  7
 #define REASON_ALARM1_DELAYED     8
+#define REASON_POWER_CONNECTED    10
+#define REASON_REBOOT             11
 
 volatile byte i2cReg[I2C_REG_COUNT];
 
@@ -240,6 +242,7 @@ void setup() {
   bool defaultOn = (i2cReg[I2C_CONF_DEFAULT_ON] == 1);
   if (defaultOn) {
     delay(i2cReg[I2C_CONF_DEFAULT_ON_DELAY] * 1000);  // delay if the value is configured
+    updateRegister(I2C_ACTION_REASON, REASON_POWER_CONNECTED);
     powerOn();  // power on directly
   } else {
     sleep();    // sleep and wait for button action
@@ -255,7 +258,7 @@ void loop() {
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
   i2cReg[I2C_ID] = 0x26;
-  i2cReg[I2C_FW_REVISION] = 0x05;
+  i2cReg[I2C_FW_REVISION] = 0x06;
   
   i2cReg[I2C_CONF_ADDRESS] = 0x08;
 
@@ -733,6 +736,7 @@ ISR (TIM1_OVF_vect) {
     if (turningOff) {
       if (turnOffFromTXD && digitalRead(PIN_TX_UP) == 1) {  // if it is rebooting
         turningOff = false;
+        updateRegister(I2C_ACTION_REASON, REASON_REBOOT);
         ledOn();
       } else {  // cut the power and enter sleep
         cutPower();
