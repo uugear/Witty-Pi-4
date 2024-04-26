@@ -11,7 +11,7 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$cur_dir/utilities.sh"
 
 TIME_UNKNOWN=1
-log 'Witty Pi daemon (v4.2) is started.'
+log 'Witty Pi daemon (v4.21) is started.'
 
 # system information
 os=$(get_os)
@@ -55,6 +55,10 @@ done
 
 
 if [ $has_mc == 1 ] ; then
+
+  # log the I2C_CONF_RTC_OFFSET
+  offset=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_RTC_OFFSET)
+  log "RTC offset register has value $offset"
 
   # make sure register I2C_RTC_CTRL1 is 0
   i2c_write 0x01 $I2C_MC_ADDRESS $I2C_RTC_CTRL1 0
@@ -130,6 +134,10 @@ if [ $has_mc == 1 ] ; then
     log 'Maybe the scheduled startup was due when Pi was running, or Pi had been shut down but TXD stayed HIGH to prevent the power cut.'
   elif [ "$reason" == $REASON_USB_5V_CONNECTED ]; then
     log 'System starts up because USB 5V is connected.'
+  elif [ "$reason" == $REASON_POWER_CONNECTED ]; then
+    log 'System starts up because power supply is newly connected.'
+  elif [ "$reason" == $REASON_REBOOT ]; then
+    log 'System starts up because it previously reboot.'
   else
     log "Unknown/incorrect startup reason: $reason"
   fi

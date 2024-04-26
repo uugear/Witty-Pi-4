@@ -102,6 +102,8 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly REASON_BELOW_TEMPERATURE='0x07'
   readonly REASON_ALARM1_DELAYED='0x08'
   readonly REASON_USB_5V_CONNECTED='0x09'
+  readonly REASON_POWER_CONNECTED='0x0a'
+  readonly REASON_REBOOT='0x0b'
 
   # config file
   if [ "$(lsb_release -si)" == "Ubuntu" ]; then

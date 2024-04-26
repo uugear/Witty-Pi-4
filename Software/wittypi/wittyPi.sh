@@ -9,7 +9,7 @@ echo '==========================================================================
 echo '|                                                                              |'
 echo '|   Witty Pi - Realtime Clock + Power Management for Raspberry Pi              |'
 echo '|                                                                              |'
-echo '|            < Version 4.2 >     by Dun Cat B.V. (UUGear)                     |'
+echo '|            < Version 4.21 >     by Dun Cat B.V. (UUGear)                     |'
 echo '|                                                                              |'
 echo '================================================================================'
 

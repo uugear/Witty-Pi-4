@@ -1,0 +1,6 @@
+# Turn on Raspberry Pi for 2 minutes, in every 3 minutes
+
+BEGIN 2024-04-25 00:00:00
+END 2035-07-31 23:59:59
+ON	M2	# keep ON state for 2 minutes
+OFF	M1	# keep OFF state for 1 minute
