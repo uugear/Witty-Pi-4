@@ -38,7 +38,7 @@ if one_wire_confliction ; then
 fi
 
 # do not run further if wiringPi is not installed
-if ! hash gpio 2>/dev/null; then
+if [ "$NO_GPIO" -ne 1 ] && ! hash gpio 2>/dev/null; then
   echo ''
   log 'Seems wiringPi is not installed, please run again the latest installation script to fix this.'
   echo ''
@@ -581,7 +581,7 @@ while true; do
 		fi
     voltages+="Vout=$(printf %.02f $vout)V, Iout=$(printf %.02f $iout)A"
     
-    if [ $(($firmwareID)) -eq 55 ]; then
+    if [ $(($firmwareID)) -eq 55 ] && [ "$NO_GPIO" -ne 1 ]; then
       chrg=$(gpio -g read $CHRG_PIN)
       stdby=$(gpio -g read $STDBY_PIN)
       if [ "$chrg" == "1" ] && [ "$stdby" == "1" ]; then

@@ -85,6 +85,7 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly I2C_RTC_TIMER_VALUE=70
   readonly I2C_RTC_TIMER_MODE=71
 
+  readonly NO_GPIO=1     # don't use gpio's just i2c
   readonly HALT_PIN=4    # halt by GPIO-4 (BCM naming)
   readonly SYSUP_PIN=17  # output SYS_UP signal on GPIO-17 (BCM naming)
   readonly CHRG_PIN=5    # input to detect charging status
@@ -120,6 +121,7 @@ fi
 
 one_wire_confliction()
 {
+  test -f ${BOOT_CONFIG_FILE} || return 1
   if [[ $HALT_PIN -eq 4 ]]; then
     if grep -qe "^\s*dtoverlay=w1-gpio\s*$" ${BOOT_CONFIG_FILE}; then
       return 0
@@ -486,9 +488,11 @@ do_shutdown()
   local halt_pin=$1
   local has_mc=$2
 
-  # restore halt pin
-  gpio -g mode $halt_pin in
-  gpio -g mode $halt_pin up
+  if [ "$NO_GPIO" -ne 1 ]; then
+    # restore halt pin
+    gpio -g mode $halt_pin in
+    gpio -g mode $halt_pin up
+  fi
 
   # clear alarm flags
   if [ $has_mc == 1 ] ; then
