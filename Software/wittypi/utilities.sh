@@ -4,10 +4,12 @@
 # This script provides some useful utility functions
 #
 
-export LC_ALL=en_GB.UTF-8
+export LC_ALL=en_US.UTF-8
 
 if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly I2C_MC_ADDRESS=0x08
+
+  readonly I2C_BUS=0
 
   readonly I2C_ID=0
   readonly I2C_VOLTAGE_IN_I=1
@@ -163,7 +165,7 @@ get_network_timestamp()
 
 is_mc_connected()
 {
-  local result=$(i2cdetect -y 1)
+  local result=$(i2cdetect -y ${I2C_BUS})
   if [[ $result == *"$(printf '%02x' $I2C_MC_ADDRESS)"* ]] ; then
     echo 1
   else
@@ -204,7 +206,7 @@ get_sys_timestamp()
 
 rtc_has_bad_time()
 {
-  year=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_YEARS)
+  year=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_YEARS)
   if [[ $year -eq 0 ]]; then
     echo 1
   else
@@ -214,12 +216,12 @@ rtc_has_bad_time()
 
 get_rtc_timestamp()
 {
-  sec=$(bcd2dec $((0x7F&$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_SECONDS))))
-  min=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_MINUTES))
-  hour=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_HOURS))
-  date=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_DAYS))
-  month=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_MONTHS))
-  year=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_YEARS))
+  sec=$(bcd2dec $((0x7F&$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_SECONDS))))
+  min=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_MINUTES))
+  hour=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_HOURS))
+  date=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_DAYS))
+  month=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_MONTHS))
+  year=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_YEARS))
   echo $(date --date="$year-$month-$date $hour:$min:$sec" +%s)
 }
 
@@ -262,60 +264,60 @@ hex2dec()
 
 get_startup_time()
 {
-  sec=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM1))
-  min=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM1))
-  hour=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM1))
-  date=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM1))
+  sec=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM1))
+  min=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM1))
+  hour=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM1))
+  date=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM1))
   printf '%02d %02d:%02d:%02d\n' $date $hour $min $sec
 }
 
 set_startup_time()
 {
   sec=$(dec2bcd $4)
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM1 $sec
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM1 $sec
   min=$(dec2bcd $3)
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM1 $min
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM1 $min
   hour=$(dec2bcd $2)
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM1 $hour
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM1 $hour
   date=$(dec2bcd $1)
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM1 $date
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM1 $date
 }
 
 clear_startup_time()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM1 0x00
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM1 0x00
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM1 0x00
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM1 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM1 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM1 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM1 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM1 0x00
 }
 
 get_shutdown_time()
 {
-  sec=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM2))
-  min=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM2))
-  hour=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM2))
-  date=$(bcd2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM2))
+  sec=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM2))
+  min=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM2))
+  hour=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM2))
+  date=$(bcd2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM2))
   printf '%02d %02d:%02d:%02d\n' $date $hour $min $sec
 }
 
 set_shutdown_time()
 {
   sec=$(dec2bcd $4)
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM2 $sec
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM2 $sec
   min=$(dec2bcd $3)
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM2 $min
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM2 $min
   hour=$(dec2bcd $2)
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM2 $hour
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM2 $hour
   date=$(dec2bcd $1)
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM2 $date
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM2 $date
 }
 
 clear_shutdown_time()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM2 0x00
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM2 0x00
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM2 0x00
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM2 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_SECOND_ALARM2 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_MINUTE_ALARM2 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_HOUR_ALARM2 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DAY_ALARM2 0x00
 }
 
 net_to_system()
@@ -341,13 +343,13 @@ system_to_rtc()
   local date=$(date -d @$sys_ts +%d)
   local month=$(date -d @$sys_ts +%m)
   local year=$(date -d @$sys_ts +%y)
-  i2c_write 0x01 $I2C_MC_ADDRESS 58 $(dec2bcd $sec)
-  i2c_write 0x01 $I2C_MC_ADDRESS 59 $(dec2bcd $min)
-  i2c_write 0x01 $I2C_MC_ADDRESS 60 $(dec2bcd $hour)
-  i2c_write 0x01 $I2C_MC_ADDRESS 61 $(dec2bcd $date)
-  i2c_write 0x01 $I2C_MC_ADDRESS 62 $(dec2bcd $day)
-  i2c_write 0x01 $I2C_MC_ADDRESS 63 $(dec2bcd $month)
-  i2c_write 0x01 $I2C_MC_ADDRESS 64 $(dec2bcd $year)
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS 58 $(dec2bcd $sec)
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS 59 $(dec2bcd $min)
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS 60 $(dec2bcd $hour)
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS 61 $(dec2bcd $date)
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS 62 $(dec2bcd $day)
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS 63 $(dec2bcd $month)
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS 64 $(dec2bcd $year)
   TIME_UNKNOWN=2
   log '  Done :-)'
 }
@@ -445,7 +447,7 @@ i2c_write()
 
 get_temperature()
 {
-  local data=$(i2cget -y 1 $I2C_MC_ADDRESS $I2C_LM75B_TEMPERATURE w)
+  local data=$(i2cget -y $I2C_BUS $I2C_MC_ADDRESS $I2C_LM75B_TEMPERATURE w)
 
   #if [[ $data =~ ^0x[0-9a-fA-F]{4}$ && $data != 0xffff ]]; then
   if [[ $data =~ ^0x[0-9a-fA-F]{4}$ ]]; then
@@ -471,14 +473,14 @@ clear_alarm_flags()
 {
   local ctrl2=0x0
   if [ -z "$1" ]; then
-    ctrl2=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_RTC_CTRL2)
+    ctrl2=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_CTRL2)
   else
     ctrl2=$1
   fi
   ctrl2=$(($ctrl2&0xBF))
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_RTC_CTRL2 $ctrl2
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_FLAG_ALARM1 0
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_FLAG_ALARM2 0
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_CTRL2 $ctrl2
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_FLAG_ALARM1 0
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_FLAG_ALARM2 0
 }
 
 do_shutdown()
@@ -522,34 +524,34 @@ schedule_script_interrupted()
 
 get_power_mode()
 {
-  local mode=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_POWER_MODE)
+  local mode=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_POWER_MODE)
   echo $(($mode))
 }
 
 get_input_voltage()
 {
-  local i=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_VOLTAGE_IN_I)
-  local d=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_VOLTAGE_IN_D)
+  local i=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_VOLTAGE_IN_I)
+  local d=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_VOLTAGE_IN_D)
   calc $(($i))+$(($d))/100
 }
 
 get_output_voltage()
 {
-  local i=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_VOLTAGE_OUT_I)
-  local d=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_VOLTAGE_OUT_D)
+  local i=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_VOLTAGE_OUT_I)
+  local d=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_VOLTAGE_OUT_D)
   calc $(($i))+$(($d))/100
 }
 
 get_output_current()
 {
-  local i=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CURRENT_OUT_I)
-  local d=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CURRENT_OUT_D)
+  local i=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CURRENT_OUT_I)
+  local d=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CURRENT_OUT_D)
   calc $(($i))+$(($d))/100
 }
 
 get_low_voltage_threshold()
 {
-  local lowVolt=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE)
+  local lowVolt=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE)
   if [ $(($lowVolt)) == 255 ]; then
     lowVolt='disabled'
   else
@@ -561,7 +563,7 @@ get_low_voltage_threshold()
 
 get_recovery_voltage_threshold()
 {
-  local recVolt=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE)
+  local recVolt=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE)
   if [ $(($recVolt)) == 255 ]; then
     recVolt='disabled'
   else
@@ -573,32 +575,32 @@ get_recovery_voltage_threshold()
 
 set_low_voltage_threshold()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE $1
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE $1
 }
 
 set_recovery_voltage_threshold()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE $1
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE $1
 }
 
 clear_low_voltage_threshold()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE 0xFF
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE 0xFF
 }
 
 clear_recovery_voltage_threshold()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE 0xFF
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE 0xFF
 }
 
 get_over_temperature_action()
 {
-  hex2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_ACTION)
+  hex2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_ACTION)
 }
 
 get_over_temperature_point()
 {
-  local t=$(hex2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_LM75B_TOS))
+  local t=$(hex2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_LM75B_TOS))
   if [ $(($t>127)) == '1' ]; then
     t=$(($t-256))
   fi
@@ -607,12 +609,12 @@ get_over_temperature_point()
 
 get_below_temperature_action()
 {
-  hex2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_ACTION)
+  hex2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_ACTION)
 }
 
 get_below_temperature_point()
 {
-  local t=$(hex2dec $(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_LM75B_THYST))
+  local t=$(hex2dec $(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_LM75B_THYST))
   if [ $(($t>127)) == '1' ]; then
     t=$(($t-256))
   fi
@@ -655,34 +657,34 @@ below_temperature_action()
 
 set_over_temperature_action()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_ACTION $1
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_ACTION $1
   local t=$2
   if [ $(($2<0)) == '1' ]; then
     t=$(($2+256))
   fi
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_LM75B_TOS $t
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_POINT $t
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_LM75B_TOS $t
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_POINT $t
 }
 
 set_below_temperature_action()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_ACTION $1
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_ACTION $1
   local t=$2
   if [ $(($2<0)) == '1' ]; then
     t=$(($2+256))
   fi
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_LM75B_THYST $t
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_POINT $t
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_LM75B_THYST $t
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_POINT $t
 }
 
 clear_over_temperature_action()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_ACTION 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_ACTION 0x00
 }
 
 clear_below_temperature_action()
 {
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_ACTION 0x00
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_ACTION 0x00
 }
 
 check_sys_and_rtc_time()

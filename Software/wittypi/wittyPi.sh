@@ -46,8 +46,8 @@ if ! hash gpio 2>/dev/null; then
 fi
 
 if [ $(is_mc_connected) -eq 1 ]; then
-  firmwareID=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_ID)
-  firmwareRev=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_FW_REVISION)
+  firmwareID=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_ID)
+  firmwareRev=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_FW_REVISION)
 fi
 
 # interactive actions
@@ -393,28 +393,28 @@ other_settings()
 {
   echo 'Here you can set:'
   echo -n '  [1] Default state when powered'
-  local ds=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON)
+  local ds=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON)
   if [[ $ds -eq 0 ]]; then
     echo ' [default OFF]'
 	else
     echo ' [default ON]'
   fi
   echo -n '  [2] Power cut delay after shutdown'
-  local pcd=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_POWER_CUT_DELAY)
+  local pcd=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_POWER_CUT_DELAY)
   pcd=$(calc $(($pcd))/10)
   printf ' [%.1f Seconds]\n' "$pcd"
   echo -n '  [3] Pulsing interval during sleep'
-  local pi=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_PULSE_INTERVAL)
+  local pi=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_PULSE_INTERVAL)
   pi=$(hex2dec $pi)
   echo " [$pi Seconds]"
   echo -n '  [4] White LED duration'
-  local led=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_BLINK_LED)
+  local led=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_BLINK_LED)
   printf ' [%d]\n' "$led"
   echo -n '  [5] Dummy load duration'
-  local dload=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DUMMY_LOAD)
+  local dload=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DUMMY_LOAD)
   printf ' [%d]\n' "$dload"
   echo -n '  [6] Vin adjustment'
-  local vinAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VIN)
+  local vinAdj=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_ADJ_VIN)
   if [[ $vinAdj -gt 127 ]]; then
   	vinAdj=$(calc $(($vinAdj-255))/100)
  	else
@@ -422,7 +422,7 @@ other_settings()
   fi
   printf ' [%.2fV]\n' "$vinAdj"
   echo -n '  [7] Vout adjustment'
-  local voutAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VOUT)
+  local voutAdj=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_ADJ_VOUT)
   if [[ $voutAdj -gt 127 ]]; then
   	voutAdj=$(calc $(($voutAdj-255))/100)
  	else
@@ -430,7 +430,7 @@ other_settings()
   fi
   printf ' [%.2fV]\n' "$voutAdj"
   echo -n '  [8] Iout adjustment'
-  local ioutAdj=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_IOUT)
+  local ioutAdj=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_ADJ_IOUT)
   if [[ $ioutAdj -gt 127 ]]; then
   	ioutAdj=$(calc $(($ioutAdj-255))/100)
  	else
@@ -440,7 +440,7 @@ other_settings()
   local optionCount=8;
   if [ $(($firmwareRev)) -ge 2 ]; then
     echo -n '  [9] Default ON delay'
-    local dod=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON_DELAY)
+    local dod=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON_DELAY)
     dod=$(hex2dec $dod)
     echo " [$dod Seconds]"
     optionCount=9;
@@ -628,7 +628,7 @@ while true; do
   fi
   if [ $(($firmwareID)) -eq 55 ]; then
     echo -n '  8. Auto-On when USB 5V is connected'
-    recV=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE)
+    recV=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE)
     if [ $(($recV)) -gt 0 ]; then
       echo "  [Yes]";
     else

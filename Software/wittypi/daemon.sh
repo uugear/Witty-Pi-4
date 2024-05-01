@@ -57,11 +57,11 @@ done
 if [ $has_mc == 1 ] ; then
 
   # log the I2C_CONF_RTC_OFFSET
-  offset=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_RTC_OFFSET)
+  offset=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_RTC_OFFSET)
   log "RTC offset register has value $offset"
 
   # make sure register I2C_RTC_CTRL1 is 0
-  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_RTC_CTRL1 0
+  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_CTRL1 0
   
   # synchronize system and RTC time
   if [ $(rtc_has_bad_time) == 1 ]; then
@@ -73,15 +73,15 @@ if [ $has_mc == 1 ] ; then
   fi
 
   # check if system was shut down because of low-voltage
-  recovery=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_LV_SHUTDOWN)
+  recovery=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_LV_SHUTDOWN)
   if [ $recovery == '0x01' ]; then
     log 'System was previously shut down because of low-voltage.'
   fi
   # print out firmware ID
-  firmwareID=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_ID)
+  firmwareID=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_ID)
   log "Firmware ID: $firmwareID"
   # print out firmware revision
-  firmwareRev=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_FW_REVISION)
+  firmwareRev=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_FW_REVISION)
   log "Firmware Revison: $firmwareRev"
   # print out current voltages and current
   vout=$(get_output_voltage)
@@ -94,8 +94,8 @@ if [ $has_mc == 1 ] ; then
   fi
 
   # if temperature sensor thresholds are not set, set them now
-  btp=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_POINT)
-  otp=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_POINT)
+  btp=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_BELOW_TEMP_POINT)
+  otp=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_OVER_TEMP_POINT)
   if [ $btp == '0x00' ] && [ $otp == '0x00' ]; then
     i2cset -y 0x01 $I2C_MC_ADDRESS $I2C_LM75B_THYST 0x004b w
     i2cset -y 0x01 $I2C_MC_ADDRESS $I2C_LM75B_TOS 0x0050 w
@@ -104,8 +104,8 @@ fi
 
 # check and clear alarm flags
 if [ $has_mc == 1 ] ; then
-  flag1=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_FLAG_ALARM1)
-  flag2=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_CONF_FLAG_ALARM2)
+  flag1=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_FLAG_ALARM1)
+  flag2=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_FLAG_ALARM2)
   if [ "$flag1" == "1" ]; then
     # woke up by alarm 1 (startup)
     log 'System startup as scheduled.'
@@ -116,7 +116,7 @@ if [ $has_mc == 1 ] ; then
   fi
   clear_alarm_flags
 
-  reason=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_ACTION_REASON)
+  reason=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_ACTION_REASON)
   if [ "$reason" == $REASON_ALARM1 ]; then
     log 'System starts up because scheduled startup is due.'
   elif [ "$reason" == $REASON_CLICK ]; then
@@ -197,7 +197,7 @@ log 'Pending for incoming shutdown command...'
 gpio -g wfi $HALT_PIN falling
 
 if [ $has_mc == 1 ] ; then
-  reason=$(i2c_read 0x01 $I2C_MC_ADDRESS $I2C_ACTION_REASON)
+  reason=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_ACTION_REASON)
   if [ "$reason" == $REASON_ALARM2 ]; then
     log 'Shutting down system because scheduled shutdown is due.'
   elif [ "$reason" == $REASON_CLICK ]; then
