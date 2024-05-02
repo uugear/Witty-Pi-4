@@ -171,7 +171,7 @@ configure_low_voltage_threshold()
       local ts=$(printf 'Low voltage threshold set to %.1fV!\n' $threshold)
       log "  $ts" && sleep 2
     elif (( $(awk "BEGIN {print ($threshold == 0)}") )); then
-      i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE 0xFF
+      i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE 0xFF
       log 'Disabled low voltage threshold!' && sleep 2
     else
       echo 'Please input from 3.0 to 4.2 ...' && sleep 2
@@ -184,7 +184,7 @@ configure_low_voltage_threshold()
       local ts=$(printf 'Low voltage threshold set to %.1fV!\n' $threshold)
       log "  $ts" && sleep 2
     elif (( $(awk "BEGIN {print ($threshold == 0)}") )); then
-      i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE 0xFF
+      i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_LOW_VOLTAGE 0xFF
       log 'Disabled low voltage threshold!' && sleep 2
     else
       echo 'Please input from 2.0 to 25.0 ...' && sleep 2
@@ -198,11 +198,11 @@ configure_recovery_voltage_threshold()
     # Witty Pi 4 L3V7
     read -p 'Turn on RPi when USB 5V is connected (0=No, 1=Yes): ' action
     if [ "$action" == '0' ]; then
-      i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE 0
+      i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE 0
       echo '  Will do nothing when USB 5V is connected.'
       sleep 2
     elif [ "$action" == '1' ]; then
-      i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE 1
+      i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE 1
       echo '  Will turn on RPi when USB 5V is connected.'
       sleep 2
     else
@@ -217,7 +217,7 @@ configure_recovery_voltage_threshold()
       local ts=$(printf 'Recovery voltage threshold set to %.1fV!\n' $threshold)
       log "  $ts" && sleep 2
     elif (( $(awk "BEGIN {print ($threshold == 0)}") )); then
-      i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE 0xFF
+      i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_RECOVERY_VOLTAGE 0xFF
       log 'Disabled recovery voltage threshold!' && sleep 2
     else
       echo 'Please input from 2.0 to 25.0 ...' && sleep 2
@@ -271,8 +271,8 @@ set_default_state()
 {
   read -p 'Input new default state (1 or 0: 1=ON, 0=OFF): ' state
   case $state in
-    0) i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON 0x00 && log 'Set to "Default OFF"!' && sleep 2;;
-    1) i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON 0x01 && log 'Set to "Default ON"!' && sleep 2;;
+    0) i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON 0x00 && log 'Set to "Default OFF"!' && sleep 2;;
+    1) i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON 0x01 && log 'Set to "Default ON"!' && sleep 2;;
     *) echo 'Please input 1 or 0 ...' && sleep 2;;
   esac
 }
@@ -286,7 +286,7 @@ set_power_cut_delay()
   read -p "Input new delay (0.0~$maxVal: value in seconds): " delay
   if (( $(awk "BEGIN {print ($delay >= 0 && $delay <= $maxVal)}") )); then
     local d=$(calc $delay*10)
-    i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_POWER_CUT_DELAY ${d%.*}
+    i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_POWER_CUT_DELAY ${d%.*}
     log "Power cut delay set to $delay seconds!" && sleep 2
   else
     echo "Please input from 0.0 to $maxVal ..." && sleep 2
@@ -297,7 +297,7 @@ set_pulsing_interval()
 {
 	read -p 'Input new interval (value in seconds, 1~20): ' interval
 	if [ $interval -ge 1 ] && [ $interval -le 20 ]; then
-	  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_PULSE_INTERVAL $interval
+	  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_PULSE_INTERVAL $interval
 	  log "Pulsing interval set to $interval seconds!" && sleep 2
 	else
 	  echo 'Please input from 1 to 20' && sleep 2
@@ -308,7 +308,7 @@ set_white_led_duration()
 {
 	read -p 'Input new duration for white LED (value in milliseconds, 0~254): ' duration
 	if [ $duration -ge 0 ] && [ $duration -le 254 ]; then
-		i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_BLINK_LED $duration
+		i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_BLINK_LED $duration
 		log "White LED duration set to $duration!" && sleep 2
 	else
 	  echo 'Please input from 0 to 254' && sleep 2
@@ -319,7 +319,7 @@ set_dummy_load_duration()
 {
 	read -p 'Input new duration for dummy load (value in milliseconds, 0~254): ' duration
 	if [ $duration -ge 0 ] && [ $duration -le 254 ]; then
-		i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DUMMY_LOAD $duration
+		i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DUMMY_LOAD $duration
 		log "Dummy load duration set to $duration!" && sleep 2
 	else
 	  echo 'Please input from 0 to 254' && sleep 2
@@ -334,7 +334,7 @@ set_vin_adjustment()
     if (( $(awk "BEGIN {print ($adj < 0)}") )); then
     	adj=$((255+$adj))
     fi
-    i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VIN ${adj%.*}
+    i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_ADJ_VIN ${adj%.*}
     local setting=$(printf 'Vin adjustment set to %.2fV!\n' $vinAdj)
     log "$setting" && sleep 2
   else
@@ -350,7 +350,7 @@ set_vout_adjustment()
     if (( $(awk "BEGIN {print ($adj < 0)}") )); then
     	adj=$((255+$adj))
     fi
-    i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_VOUT ${adj%.*}
+    i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_ADJ_VOUT ${adj%.*}
     local setting=$(printf 'Vout adjustment set to %.2fV!\n' $voutAdj)
     log "$setting" && sleep 2
   else
@@ -366,7 +366,7 @@ set_iout_adjustment()
     if (( $(awk "BEGIN {print ($adj < 0)}") )); then
     	adj=$((255+$adj))
     fi
-    i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_ADJ_IOUT ${adj%.*}
+    i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_ADJ_IOUT ${adj%.*}
     local setting=$(printf 'Iout adjustment set to %.2fA!\n' $ioutAdj)
     log "$setting" && sleep 2
   else
@@ -379,7 +379,7 @@ set_default_on_delay()
   if [ $(($firmwareRev)) -ge 2 ]; then
     read -p 'Wait how many seconds before Auto-ON (0~10): ' delay
   	if [ $delay -ge 0 ] && [ $delay -le 10 ]; then
-  	  i2c_write 0x01 $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON_DELAY $delay
+  	  i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_CONF_DEFAULT_ON_DELAY $delay
   	  log "Default ON delay set to $delay seconds!" && sleep 2
   	else
   	  echo 'Please input from 0 to 10' && sleep 2
