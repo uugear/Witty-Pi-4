@@ -698,3 +698,14 @@ check_sys_and_rtc_time()
     echo 'Please synchronize the time first.'
   fi
 }
+
+delete_schedule_script()
+{
+  log '  Deleting "schedule.wpi" file...' '-n'
+  if [ -f "schedule.wpi" ]; then
+    rm "schedule.wpi"
+    log ' done :-)'
+  else
+    log ' file does not exist'
+  fi
+}

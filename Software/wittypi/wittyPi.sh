@@ -474,17 +474,6 @@ reset_shutdown_time()
   log ' done :-)'
 }
 
-delete_schedule_script()
-{
-  log '  Deleting "schedule.wpi" file...' '-n'
-  if [ -f "$my_dir/schedule.wpi" ]; then
-    rm "$my_dir/schedule.wpi"
-    log ' done :-)'
-  else
-    log ' file does not exist'
-  fi
-}
-
 reset_low_voltage_threshold()
 {
   log '  Clearing low voltage threshold...' '-n'

@@ -112,16 +112,17 @@ if [ -f $schedule_file ]; then
     fi
   done < $schedule_file
 
-  if [ $begin == 0 ] ; then
+  if [ $reset == 1 ] ; then
+    log 'Reseting scheduled startup/shutdown.'
+    clear_startup_time
+    clear_shutdown_time
+    delete_schedule_script
+  elif [ $begin == 0 ] ; then
     log 'I can not find the begin time in the script...'
   elif [ $end == 0 ] ; then
     log 'I can not find the end time in the script...'
   elif [ $count == 0 ] ; then
     log 'I can not find any state defined in the script.'
-  elif [ $reset == 1 ] ; then
-    log 'Reseting scheduled startup/shutdown.'
-    clear_startup_time
-    clear_shutdown_time
   else
     if [ $((cur_time < begin)) == '1' ] ; then
       cur_time=$begin
