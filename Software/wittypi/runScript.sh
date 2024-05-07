@@ -90,6 +90,7 @@ setup_on_state()
 }
 
 if [ -f $schedule_file ]; then
+  reset=0
   begin=0
   end=0
   count=0
@@ -99,7 +100,9 @@ if [ -f $schedule_file ]; then
       line=${line:0:$cpos-1}
     fi
     line=$(trim "$line")
-    if [[ $line == BEGIN* ]]; then
+    if [[ $line == RESET* ]]; then
+      reset=1
+    elif [[ $line == BEGIN* ]]; then
       begin=$(extract_timestamp "$line")
     elif [[ $line == END* ]]; then
       end=$(extract_timestamp "$line")
@@ -115,6 +118,10 @@ if [ -f $schedule_file ]; then
     log 'I can not find the end time in the script...'
   elif [ $count == 0 ] ; then
     log 'I can not find any state defined in the script.'
+  elif [ $reset == 1 ] ; then
+    log 'Reseting scheduled startup/shutdown.'
+    clear_startup_time
+    clear_shutdown_time
   else
     if [ $((cur_time < begin)) == '1' ] ; then
       cur_time=$begin
