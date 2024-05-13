@@ -493,7 +493,7 @@ do_shutdown()
   gpio -g mode $halt_pin up
 
   # clear alarm flags
-  if [ $has_mc == 1 ] ; then
+  if [ "$has_mc" == "1" ] ; then
     clear_alarm_flags
   fi
 
