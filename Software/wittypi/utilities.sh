@@ -4,7 +4,7 @@
 # This script provides some useful utility functions
 #
 
-export LC_ALL=en_US.UTF-8
+export LC_ALL=en_GB.UTF-8
 
 if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly I2C_MC_ADDRESS=0x08
