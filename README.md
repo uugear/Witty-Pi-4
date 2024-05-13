@@ -26,4 +26,4 @@ Here are the configurations on your Arduino IDE:
 
 ![](https://github.com/uugear/Witty-Pi-4/raw/main/Firmware/WittyPi4_Arduino_Settings.png)
 
-To upload the firmware to Witty Pi, you can follow [this document](https://www.uugear.com/doc/WittyPi3_UpdateFirmware.pdf).
+To upload the firmware to Witty Pi, you can follow [this document](https://www.uugear.com/portfolio/compile-flash-firmware-for-witty-pi-4/).
