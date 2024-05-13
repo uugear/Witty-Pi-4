@@ -90,6 +90,14 @@ setup_on_state()
 }
 
 if [ -f $schedule_file ]; then
+
+  if [[ -z $(grep '[^[:space:]]' $schedule_file) ]] ; then
+    log 'The schedule script file is empty, clear scheduled startup and shutdown time.'
+    clear_startup_time
+    clear_shutdown_time
+    exit
+  fi
+
   begin=0
   end=0
   count=0
