@@ -1,7 +1,7 @@
 /**
  * Firmware for WittyPi 4
  * 
- * Revision: 5
+ * Revision: 6
  */
  
 #define SDA_PIN 2
@@ -190,6 +190,10 @@ volatile byte lastSystemUp = 0;
 
 volatile boolean turnOffFromTXD = false;
 
+volatile unsigned long guaranteedWakeCounter = 0;
+
+const unsigned long guaranteedWakeTreshold = 86400; // 24 hours
+
 SoftWireMaster softWireMaster;  // software I2C master
 
 
@@ -346,7 +350,11 @@ void sleep() {
     sleep_cpu();                          // sleep
     if (wakeupByWatchdog) {               // wake up by watch dog
       skipPulseCount ++;
-      if (skipPulseCount >= i2cReg[I2C_CONF_PULSE_INTERVAL]) {
+      guaranteedWakeCounter ++;
+      if (guaranteedWakeCounter >= guaranteedWakeTreshold) {
+        wakeupByWatchdog = false;
+        updateRegister(I2C_ACTION_REASON, REASON_REBOOT); // TODO Maybe implement a new reason for this
+      } else if (skipPulseCount >= i2cReg[I2C_CONF_PULSE_INTERVAL]) {
         skipPulseCount = 0;
 
         // blink white LED
@@ -370,7 +378,7 @@ void sleep() {
   
         // check input voltage if shutdown because of low voltage, and recovery voltage has been set
         // will skip checking I2C_LV_SHUTDOWN if I2C_CONF_LOW_VOLTAGE is set to 0xFF
-        if ((i2cReg[I2C_POWER_MODE] == 1 || i2cReg[I2C_CONF_IGNORE_POWER_MODE] == 1)
+        if ((i2cReg[I2C_POWER_MODE] == 1 || i2cReg[I2C_CONF_IGNORE_POWER_MODE] == 1) 
             && (i2cReg[I2C_LV_SHUTDOWN] == 1 || i2cReg[I2C_CONF_LOW_VOLTAGE] == 255 || i2cReg[I2C_CONF_IGNORE_LV_SHUTDOWN] == 1) 
             && i2cReg[I2C_CONF_RECOVERY_VOLTAGE] != 255) {
           float vrec = ((float)i2cReg[I2C_CONF_RECOVERY_VOLTAGE]) / 10;
@@ -413,6 +421,7 @@ void cutPower() {
 void powerOn() {
   powerIsOn = true;
   skipTempShutdownCount = 0;
+  guaranteedWakeCounter = 0;
   digitalWrite(PIN_CTRL, 1);
   updatePowerMode();
 }
