@@ -1,7 +1,7 @@
 /**
  * Firmware for WittyPi 4
  * 
- * Revision: 6
+ * Revision: 7
  */
  
 #define SDA_PIN 2
@@ -55,7 +55,7 @@
 #define I2C_LV_SHUTDOWN             8   // 1 if system was shutdown by low voltage, otherwise 0
 #define I2C_ALARM1_TRIGGERED        9   // 1 if alarm1 (startup) has been triggered
 #define I2C_ALARM2_TRIGGERED        10  // 1 if alarm2 (shutdown) has been triggered
-#define I2C_ACTION_REASON           11  // the latest action reason: 1-alarm1; 2-alarm2; 3-click; 4-low voltage; 5-voltage restored; 6-over temperature; 7-below temperature; 8-alarm1 delayed; 10-power connected; 11-reboot
+#define I2C_ACTION_REASON           11  // the latest action reason: 1-alarm1; 2-alarm2; 3-click; 4-low voltage; 5-voltage restored; 6-over temperature; 7-below temperature; 8-alarm1 delayed; 10-power connected; 11-reboot; 12-guaranteed wake
 #define I2C_FW_REVISION             12  // the firmware revision
 #define I2C_RFU_1                   13  // reserve for future usage
 #define I2C_RFU_2                   14  // reserve for future usage
@@ -102,8 +102,11 @@
 #define I2C_CONF_OVER_TEMP_POINT    46  // set point for over temperature
 
 #define I2C_CONF_DEFAULT_ON_DELAY   47  // the delay (in second) between MCU initialization and turning on Raspberry Pi, when I2C_CONF_DEFAULT_ON = 1
-#define I2C_CONF_MISC               48  // 8 bits for miscellaneous configuration. bit-0: set to 1 to disable alarm1 (startup) delay
-#define I2C_CONF_RFU_3              49  // reserve for future usage
+#define I2C_CONF_MISC               48  // 8 bits for miscellaneous configuration. 
+                                        //   bit-0: set to 1 to disable alarm1 (startup) delay
+#define I2C_CONF_GUARANTEED_WAKE    49  // 8 bits for guarenteed wake configuration.
+                                        //   bit-0~6: guaranteed wake duration (0~127)
+                                        //   bit-7: guaranteed wake duration unit (0=hour, 1=day)
 
 #define I2C_REG_COUNT               50  // number of (non-virtual) I2C registers
 
@@ -147,6 +150,8 @@
 #define REASON_ALARM1_DELAYED     8
 #define REASON_POWER_CONNECTED    10
 #define REASON_REBOOT             11
+#define REASON_GUARANTEED_WAKE    12
+
 
 volatile byte i2cReg[I2C_REG_COUNT];
 
@@ -191,8 +196,6 @@ volatile byte lastSystemUp = 0;
 volatile boolean turnOffFromTXD = false;
 
 volatile unsigned long guaranteedWakeCounter = 0;
-
-const unsigned long guaranteedWakeTreshold = 86400; // 24 hours
 
 SoftWireMaster softWireMaster;  // software I2C master
 
@@ -262,7 +265,7 @@ void loop() {
 // initialize the registers and synchronize with EEPROM
 void initializeRegisters() {
   i2cReg[I2C_ID] = 0x26;
-  i2cReg[I2C_FW_REVISION] = 0x06;
+  i2cReg[I2C_FW_REVISION] = 0x07;
   
   i2cReg[I2C_CONF_ADDRESS] = 0x08;
 
@@ -349,12 +352,32 @@ void sleep() {
   do {
     sleep_cpu();                          // sleep
     if (wakeupByWatchdog) {               // wake up by watch dog
+
+      boolean guaranteedWake = false;
+      unsigned long guaranteedWakeThreshold = (i2cReg[I2C_CONF_GUARANTEED_WAKE] & 0x7F);
+      if (guaranteedWakeThreshold > 0) {
+        guaranteedWakeCounter ++;
+        if (guaranteedWakeCounter >= guaranteedWakeThreshold * ((i2cReg[I2C_CONF_GUARANTEED_WAKE] & 0x80) > 0 ? 86400 : 3600)) {
+          float vin = updatePowerMode();
+          if (i2cReg[I2C_POWER_MODE] == 0) {
+            guaranteedWake = true;
+          } else {
+            float vrec = (i2cReg[I2C_CONF_RECOVERY_VOLTAGE] == 255) ? 0.0f : ((float)i2cReg[I2C_CONF_RECOVERY_VOLTAGE]) / 10;
+            if (vin >= vrec) {
+              guaranteedWake = true;
+            } else {
+              guaranteedWakeCounter = 0; // input voltage is too low, will try again later
+            }
+          }
+        }
+        if (guaranteedWake) {
+          wakeupByWatchdog = false;
+          updateRegister(I2C_ACTION_REASON, REASON_GUARANTEED_WAKE);  // guarantee wake up in given duration
+        }
+      }
+      
       skipPulseCount ++;
-      guaranteedWakeCounter ++;
-      if (guaranteedWakeCounter >= guaranteedWakeTreshold) {
-        wakeupByWatchdog = false;
-        updateRegister(I2C_ACTION_REASON, REASON_REBOOT); // TODO Maybe implement a new reason for this
-      } else if (skipPulseCount >= i2cReg[I2C_CONF_PULSE_INTERVAL]) {
+      if (!guaranteedWake && skipPulseCount >= i2cReg[I2C_CONF_PULSE_INTERVAL]) {
         skipPulseCount = 0;
 
         // blink white LED
