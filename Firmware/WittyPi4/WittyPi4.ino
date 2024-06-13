@@ -171,19 +171,17 @@ volatile boolean wakeupByWatchdog = false;
 
 volatile boolean ledIsOn = false;
 
-volatile unsigned long buttonStateChangeTime = 0;
-
-volatile unsigned long voltageQueryTime = 0;
-
 volatile unsigned int powerCutDelay = 0;
+
+volatile boolean isButtonClickEmulated = false;
 
 volatile byte skipAdjustRtcCount = 0;
 
 volatile byte skipTempShutdownCount = 0;
 
-volatile boolean isButtonClickEmulated = false;
-
 volatile byte skipPulseCount = 0;
+
+volatile byte skipLowVoltageDetectCount = 0;
 
 volatile byte alarm1Delayed = 0;
 
@@ -196,6 +194,10 @@ volatile byte lastSystemUp = 0;
 volatile boolean turnOffFromTXD = false;
 
 volatile unsigned long guaranteedWakeCounter = 0;
+
+volatile byte lowVoltageCacheInteger = 0;
+
+volatile byte lowVoltageCacheDecimal = 0;
 
 SoftWireMaster softWireMaster;  // software I2C master
 
@@ -445,6 +447,7 @@ void powerOn() {
   powerIsOn = true;
   skipTempShutdownCount = 0;
   guaranteedWakeCounter = 0;
+  skipLowVoltageDetectCount = 0;
   digitalWrite(PIN_CTRL, 1);
   updatePowerMode();
 }
@@ -498,11 +501,15 @@ float updatePowerMode() {
 
 // get input voltage
 float getInputVoltage() {
-  float v = getAdcVoltageAtPin(PIN_VIN);
-  v += getAdjustValue(I2C_CONF_ADJ_VIN);
-  updateRegister(I2C_VOLTAGE_IN_I, getIntegerPart(v));
-  updateRegister(I2C_VOLTAGE_IN_D, getDecimalPart(v));
-  return v;
+  if (lowVoltageCacheInteger == 0) {
+    float v = getAdcVoltageAtPin(PIN_VIN);
+    v += getAdjustValue(I2C_CONF_ADJ_VIN);
+    updateRegister(I2C_VOLTAGE_IN_I, getIntegerPart(v));
+    updateRegister(I2C_VOLTAGE_IN_D, getDecimalPart(v));
+    return v;
+  } else {
+    return (float)lowVoltageCacheInteger + ((float)lowVoltageCacheDecimal) / 100;
+  }
 }
 
 
@@ -665,6 +672,9 @@ ISR (WDT_vect) {
   }
 
   // process low voltage
+  if (skipLowVoltageDetectCount < 255) {
+    skipLowVoltageDetectCount ++;
+  }
   processLowVoltageIfNeeded();
 
   // handle temperature related actions
@@ -942,6 +952,11 @@ void handleTemperatureActtonsIfNeeded() {
 
 // process low voltage
 void processLowVoltageIfNeeded() {
+  lowVoltageCacheInteger = 0;
+  // do not detect low voltage too soon since power on
+  if (skipLowVoltageDetectCount < 180) {
+    return;
+  }
   // if input voltage is not fixed 5V, detect low voltage
   if (powerIsOn && systemIsUp 
       && (i2cReg[I2C_POWER_MODE] == 1 || i2cReg[I2C_CONF_IGNORE_POWER_MODE] == 1)
@@ -950,6 +965,8 @@ void processLowVoltageIfNeeded() {
     float vin = getInputVoltage();
     float vlow = ((float)i2cReg[I2C_CONF_LOW_VOLTAGE]) / 10;
     if (vin < vlow) {  // input voltage is below the low voltage threshold
+      lowVoltageCacheInteger = i2cReg[I2C_VOLTAGE_IN_I];
+      lowVoltageCacheDecimal = i2cReg[I2C_VOLTAGE_IN_D];
       updateRegister(I2C_LV_SHUTDOWN, 1);
       updateRegister(I2C_ACTION_REASON, REASON_LOW_VOLTAGE);
       emulateButtonClick();

@@ -1,7 +1,7 @@
 /**
  * Firmware for WittyPi 4 L3V7
  * 
- * Revision: 5
+ * Revision: 7
  */
  
 #define SDA_PIN 2
@@ -55,7 +55,7 @@
 #define I2C_LV_SHUTDOWN             8   // 1 if system was shutdown by low voltage, otherwise 0
 #define I2C_ALARM1_TRIGGERED        9   // 1 if alarm1 (startup) has been triggered
 #define I2C_ALARM2_TRIGGERED        10  // 1 if alarm2 (shutdown) has been triggered
-#define I2C_ACTION_REASON           11  // the latest action reason: 1-alarm1; 2-alarm2; 3-click; 4-low voltage; 5-voltage restored; 6-over temperature; 7-below temperature; 8-alarm1 delayed; 9-USB 5V connected; 10-power connected; 11-reboot
+#define I2C_ACTION_REASON           11  // the latest action reason: 1-alarm1; 2-alarm2; 3-click; 4-low voltage; 5-voltage restored; 6-over temperature; 7-below temperature; 8-alarm1 delayed; 9-USB 5V connected; 10-power connected; 11-reboot; 12-guaranteed wake
 #define I2C_FW_REVISION             12  // the firmware revision
 #define I2C_RFU_1                   13  // reserve for future usage
 #define I2C_RFU_2                   14  // reserve for future usage
@@ -102,8 +102,11 @@
 #define I2C_CONF_OVER_TEMP_POINT    46  // set point for over temperature
 
 #define I2C_CONF_DEFAULT_ON_DELAY   47  // the delay (in second) between MCU initialization and turning on Raspberry Pi, when I2C_CONF_DEFAULT_ON = 1
-#define I2C_CONF_MISC               48  // 8 bits for miscellaneous configuration. bit-0: set to 1 to disable alarm1 (startup) delay
-#define I2C_CONF_RFU_3              49  // reserve for future usage
+#define I2C_CONF_MISC               48  // 8 bits for miscellaneous configuration. 
+                                        //   bit-0: set to 1 to disable alarm1 (startup) delay
+#define I2C_CONF_GUARANTEED_WAKE    49  // 8 bits for guarenteed wake configuration.
+                                        //   bit-0~6: guaranteed wake duration (0~127)
+                                        //   bit-7: guaranteed wake duration unit (0=hour, 1=day)
 
 #define I2C_REG_COUNT               50  // number of (non-virtual) I2C registers
 
@@ -148,6 +151,7 @@
 #define REASON_USB_5V_CONNECTED   9
 #define REASON_POWER_CONNECTED    10
 #define REASON_REBOOT             11
+#define REASON_GUARANTEED_WAKE    12
 
 volatile byte i2cReg[I2C_REG_COUNT];
 
@@ -167,21 +171,17 @@ volatile boolean wakeupByWatchdog = false;
 
 volatile boolean ledIsOn = false;
 
-volatile unsigned long buttonStateChangeTime = 0;
-
-volatile unsigned long voltageQueryTime = 0;
-
-volatile unsigned long getVinTime = 0;
-
 volatile unsigned int powerCutDelay = 0;
+
+volatile boolean isButtonClickEmulated = false;
 
 volatile byte skipAdjustRtcCount = 0;
 
 volatile byte skipTempShutdownCount = 0;
 
-volatile boolean isButtonClickEmulated = false;
-
 volatile byte skipPulseCount = 0;
+
+volatile byte skipLowVoltageDetectCount = 0;
 
 volatile byte alarm1Delayed = 0;
 
@@ -192,6 +192,12 @@ volatile byte lastButton = 1;
 volatile byte lastSystemUp = 0;
 
 volatile boolean turnOffFromTXD = false;
+
+volatile unsigned long guaranteedWakeCounter = 0;
+
+volatile byte lowVoltageCacheInteger = 0;
+
+volatile byte lowVoltageCacheDecimal = 0;
 
 SoftWireMaster softWireMaster;  // software I2C master
 
@@ -263,7 +269,7 @@ void initializeRegisters() {
   // firmware id: 0x37 (Witty Pi 4 L3V7)
   i2cReg[I2C_ID] = 0x37;  
   
-  i2cReg[I2C_FW_REVISION] = 0x06;
+  i2cReg[I2C_FW_REVISION] = 0x07;
   
   i2cReg[I2C_CONF_ADDRESS] = 0x08;
 
@@ -350,8 +356,32 @@ void sleep() {
   do {
     sleep_cpu();                          // sleep
     if (wakeupByWatchdog) {               // wake up by watch dog
+
+      boolean guaranteedWake = false;
+      unsigned long guaranteedWakeThreshold = (i2cReg[I2C_CONF_GUARANTEED_WAKE] & 0x7F);
+      if (guaranteedWakeThreshold > 0) {
+        guaranteedWakeCounter ++;
+        if (guaranteedWakeCounter >= guaranteedWakeThreshold * ((i2cReg[I2C_CONF_GUARANTEED_WAKE] & 0x80) > 0 ? 86400 : 3600)) { 
+          float vin = updatePowerMode();
+          if (i2cReg[I2C_POWER_MODE] == 0) {
+            guaranteedWake = true;  // USB 5V is connected, wake up the device
+          } else {
+            float vlow = ((float)i2cReg[I2C_CONF_LOW_VOLTAGE]) / 10;
+            if (vin > vlow) {
+              guaranteedWake = true; // battery voltage is higher than low-voltage threshold
+            } else {
+              guaranteedWakeCounter = 0; // battery voltage is too low, will try again later
+            }
+          }
+        }
+        if (guaranteedWake) {
+          wakeupByWatchdog = false;
+          updateRegister(I2C_ACTION_REASON, REASON_GUARANTEED_WAKE);  // guarantee wake up in given duration
+        }
+      }
+      
       skipPulseCount ++;
-      if (skipPulseCount >= i2cReg[I2C_CONF_PULSE_INTERVAL]) {
+      if (!guaranteedWake && skipPulseCount >= i2cReg[I2C_CONF_PULSE_INTERVAL]) {
         skipPulseCount = 0;
 
         // blink white LED
@@ -411,6 +441,8 @@ void cutPower() {
 void powerOn() {
   powerIsOn = true;
   skipTempShutdownCount = 0;
+  guaranteedWakeCounter = 0;
+  skipLowVoltageDetectCount = 0;
   digitalWrite(PIN_CTRL, 1);
   updatePowerMode();
 }
@@ -464,6 +496,12 @@ float updatePowerMode() {
 //          1 if low voltage is detected
 //          2 if low voltage is not detected
 byte detectLowVoltage() {
+  lowVoltageCacheInteger = 0;
+  lowVoltageCacheDecimal = 0;
+  // do not detect low voltage too soon since power on
+  if (skipLowVoltageDetectCount < 180) {
+    return 0;
+  }
   if (powerIsOn && systemIsUp 
       && (i2cReg[I2C_POWER_MODE] != 0 || i2cReg[I2C_CONF_IGNORE_POWER_MODE] == 1)
       && (i2cReg[I2C_LV_SHUTDOWN] == 0 || i2cReg[I2C_CONF_IGNORE_LV_SHUTDOWN] == 1)
@@ -471,6 +509,8 @@ byte detectLowVoltage() {
     float vin = getInputVoltage();
     float vlow = ((float)i2cReg[I2C_CONF_LOW_VOLTAGE]) / 10;
     if (vin < vlow) {  // input voltage is below the low voltage threshold
+      lowVoltageCacheInteger = i2cReg[I2C_VOLTAGE_IN_I];
+      lowVoltageCacheDecimal = i2cReg[I2C_VOLTAGE_IN_D];
       updateRegister(I2C_LV_SHUTDOWN, 1);
       updateRegister(I2C_ACTION_REASON, REASON_LOW_VOLTAGE);
       emulateButtonClick();
@@ -483,18 +523,15 @@ byte detectLowVoltage() {
 }
 
 
-// get input voltage, will return previous value if it was measured within one second
-// will update the register when new measurement is done
+// get input voltage, will return cached low voltage values if that exists
 float getInputVoltage() {
-  unsigned long curTime = micros();
-  if (getVinTime > curTime || curTime - getVinTime >= 1000000) {
-    getVinTime = curTime;
+  if (lowVoltageCacheInteger == 0 && lowVoltageCacheDecimal == 0) {
     float v = getInputVoltageWithoutUpdateReg();
     updateRegister(I2C_VOLTAGE_IN_I, getIntegerPart(v));
     updateRegister(I2C_VOLTAGE_IN_D, getDecimalPart(v));
     return v;
   } else {
-    return (float)i2cReg[I2C_VOLTAGE_IN_I] + ((float)i2cReg[I2C_VOLTAGE_IN_D]) / 100;
+    return (float)lowVoltageCacheInteger + ((float)lowVoltageCacheDecimal) / 100;
   }
 }
 
@@ -619,9 +656,7 @@ void requestEvent() {
   float v = 0.0;
   switch (i2cIndex) {
     case I2C_VOLTAGE_IN_I:
-      if (detectLowVoltage() == 0) {
-        getInputVoltage();
-      }
+      getInputVoltage();
       break;
     case I2C_VOLTAGE_OUT_I:
       getOutputVoltage();
@@ -673,6 +708,9 @@ ISR (WDT_vect) {
   }
 
   // detect low voltage
+  if (skipLowVoltageDetectCount < 255) {
+    skipLowVoltageDetectCount ++;
+  }
   detectLowVoltage();
 
   // handle temperature related actions
