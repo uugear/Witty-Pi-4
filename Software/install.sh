@@ -142,7 +142,7 @@ if [ $ERR -eq 0 ]; then
   if [ -d "wittypi" ]; then
     echo 'Seems wittypi is installed already, skip this step.'
   else
-    wget https://www.uugear.com/repo/WittyPi4/LATEST -O wittyPi.zip || ((ERR++))
+    wget https://github.com/Ecomoni/Witty-Pi-4/releases/latest/download/wittypi-ecomoni.zip -O wittyPi.zip || ((ERR++))
     unzip wittyPi.zip -d wittypi || ((ERR++))
     cd wittypi
     chmod +x wittyPi.sh

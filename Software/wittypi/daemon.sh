@@ -7,11 +7,14 @@
 # get current directory
 cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+# specify the current firmware version
+version="v4.21"
+
 # utilities
 . "$cur_dir/utilities.sh"
 
 TIME_UNKNOWN=1
-log 'Witty Pi daemon (v4.21) is started.'
+log "Witty Pi daemon (${version}-ecomoni) is started."
 
 # system information
 os=$(get_os)
@@ -62,7 +65,7 @@ if [ $has_mc == 1 ] ; then
 
   # make sure register I2C_RTC_CTRL1 is 0
   i2c_write ${I2C_BUS} $I2C_MC_ADDRESS $I2C_RTC_CTRL1 0
-  
+
   # synchronize system and RTC time
   if [ $(rtc_has_bad_time) == 1 ]; then
     log 'RTC has bad time, write system time into RTC'
@@ -82,7 +85,7 @@ if [ $has_mc == 1 ] ; then
   log "Firmware ID: $firmwareID"
   # print out firmware revision
   firmwareRev=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_FW_REVISION)
-  log "Firmware Revison: $firmwareRev"
+  log "Firmware Revision: $firmwareRev"
   # print out current voltages and current
   vout=$(get_output_voltage)
   iout=$(get_output_current)
@@ -157,7 +160,7 @@ fi
 
 # delay until GPIO pin state gets stable
 counter=0
-while [ $counter -lt 5 ]; do  # increase this value if it needs more time
+while [ $counter -lt 25 ]; do  # increase this value if it needs more time
   if [ $(gpio -g read $HALT_PIN) == '1' ] ; then
     counter=$(($counter+1))
   else
@@ -167,7 +170,7 @@ while [ $counter -lt 5 ]; do  # increase this value if it needs more time
 done
 
 # run beforeScript.sh
-"$cur_dir/beforeScript.sh" >> "$cur_dir/wittyPi.log" 2>&1
+sudo -u $(id -nu 1000) "$cur_dir/beforeScript.sh" >> "$cur_dir/wittyPi.log" 2>&1
 
 # run schedule script
 if [ $has_mc == 1 ] ; then
@@ -177,7 +180,7 @@ else
 fi
 
 # run afterStartup.sh
-"$cur_dir/afterStartup.sh" >> "$cur_dir/wittyPi.log" 2>&1
+sudo -u $(id -nu 1000) "$cur_dir/afterStartup.sh" >> "$cur_dir/wittyPi.log" 2>&1
 
 # indicates system is up
 log "Send out the SYS_UP signal via GPIO-$SYSUP_PIN pin."
@@ -194,33 +197,43 @@ gpio -g mode $SYSUP_PIN in
 
 # wait for GPIO-4 (BCM naming) falling, or alarm 2 (shutdown)
 log 'Pending for incoming shutdown command...'
-gpio -g wfi $HALT_PIN falling
-
+counter=0
 if [ $has_mc == 1 ] ; then
-  reason=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_ACTION_REASON)
-  if [ "$reason" == $REASON_ALARM2 ]; then
-    log 'Shutting down system because scheduled shutdown is due.'
-  elif [ "$reason" == $REASON_CLICK ]; then
-    log "Shutting down system because button is clicked or GPIO-$HALT_PIN is pulled down."
-  elif [ "$reason" == $REASON_LOW_VOLTAGE ]; then
+  while [ 1 ]; do  # increase this value if it needs more time
+
+    gpio -g wfi $HALT_PIN falling
+    counter=$(($counter+1))
+
+    reason=$(i2c_read ${I2C_BUS} $I2C_MC_ADDRESS $I2C_ACTION_REASON)
+    if [ "$reason" == $REASON_ALARM2 ]; then
+      log 'Shutting down system because scheduled shutdown is due.'
+      break
+    elif [ "$reason" == $REASON_CLICK ]; then
+      log "Shutting down system because button is clicked or GPIO-$HALT_PIN is pulled down."
+    elif [ "$reason" == $REASON_LOW_VOLTAGE ]; then
+      vin=$(get_input_voltage)
+      vlow=$(get_low_voltage_threshold)
+      log "Shutting down system because input voltage is too low: Vin=${vin}V, Vlow=${vlow}"
+      break
+    elif [ "$reason" == $REASON_OVER_TEMPERATURE ]; then
+      log 'Shutting down system because over temperature.'
+      break
+      log "$(get_temperature)"
+    elif [ "$reason" == $REASON_BELOW_TEMPERATURE ]; then
+      log 'Shutting down system because below temperature.'
+      log "$(get_temperature)"
+      break
+    else
+      log "Unknown/incorrect shutdown reason: $reason"
+    fi
     vin=$(get_input_voltage)
-    vlow=$(get_low_voltage_threshold)
-    log "Shutting down system because input voltge is too low: Vin=${vin}V, Vlow=${vlow}"
-  elif [ "$reason" == $REASON_OVER_TEMPERATURE ]; then
-    log 'Shutting down system because over temperature.'
-    log "$(get_temperature)"
-  elif [ "$reason" == $REASON_BELOW_TEMPERATURE ]; then
-    log 'Shutting down system because below temperature.'
-    log "$(get_temperature)"
-  else
-    log "Unknown/incorrect shutdown reason: $reason"
-  fi
+    log "System will not shut down (custom daemon.sh) Vin=${vin} counter= ${counter}"
+  done
 else
   log 'Witty Pi is not connected, skip I2C communications...'
 fi
-
 # run beforeShutdown.sh
-"$cur_dir/beforeShutdown.sh" >> "$cur_dir/wittyPi.log" 2>&1
+sudo -u $(id -nu 1000) "$cur_dir/beforeShutdown.sh" >> "$cur_dir/wittyPi.log" 2>&1
 
 # shutdown Raspberry Pi
 do_shutdown $HALT_PIN $has_mc

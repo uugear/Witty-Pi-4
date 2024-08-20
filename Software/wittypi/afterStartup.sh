@@ -1,9 +1,16 @@
 #!/bin/bash
-# file: afterStartup.sh
-#
-# This script will run after Raspberry Pi boot up and finish running the schedule script.
-# If you want to run your commands after boot, you can place them here.
-# 
-# Remarks: please use absolute path of the command, or it can not be found (by root user).
-# Remarks: you may append '&' at the end of command to avoid blocking the main daemon.sh.
-#
+
+## Script that replaces the default afterStartup.sh of the wittyPi installation.
+
+# Get current directory
+cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Get utilities
+source "$cur_dir/utilities.sh"
+
+# Verify current wittypi schedule
+$ecomoni wittypi check-schedule
+$ecomoni wittypi check-next-shutdown
+
+# Start ecomoni service
+sudo systemctl start ecomoni

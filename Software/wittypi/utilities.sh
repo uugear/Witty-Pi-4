@@ -700,3 +700,33 @@ check_sys_and_rtc_time()
     echo 'Please synchronize the time first.'
   fi
 }
+
+home_dir="/home/$(id -nu 1000)"
+python="$home_dir/venv/bin/python"
+ecomoni="$home_dir/venv/bin/ecomoni"
+
+wait_network() {
+    for i in $(seq 1 10); do
+        if ping -c1 1.1.1.1 > /dev/null; then
+            break
+        fi
+        sleep 10
+    done
+    if [ $i -eq 10 ]; then
+        log "WARNING: Ping failed after 10 attempts."
+        return 1
+    fi
+    return 0
+}
+
+sync_time() {
+  net_to_system  > /dev/null
+  local time_rtc=$(get_rtc_timestamp)
+  local time_net=$(get_sys_timestamp)
+  local time_diff=$((time_rtc - time_net))
+  if [ "${time_diff#-}" -gt 10 ]; then
+    log "WARNING: Time was off more than 10 seconds! Updating RTC-time."
+    system_to_rtc > /dev/null
+  fi
+  log "Time Synced: Sys-time is $(date +%s) &  RTC-time is $(get_rtc_timestamp)."
+}

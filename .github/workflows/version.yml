@@ -1,0 +1,28 @@
+name: Version 🏷️
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Version 🏷️
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read version tag 🏷️
+        id: get_version
+        run: |
+          input=$(grep version Software/wittypi/daemon.sh)
+          [[ $input =~ ([0-9]+.[0-9]+) ]]
+          echo version=${BASH_REMATCH[1]} >> $GITHUB_OUTPUT
+      - name: Write version tag ✏️
+        uses: rickstaa/action-create-tag@v1
+        with:
+          tag: ${{ steps.get_version.outputs.version }}
+          force_push_tag: true
+          message: ${{ github.event.head_commit.message }}

@@ -1,0 +1,29 @@
+name: Release 🚀
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release 🚀
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get version tag 🏷️
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+      - name: Collect firmware 🗃️
+        run: (cd Software && zip ../wittypi-ecomoni.zip -r wittypi/)
+      - name: Create release 🚀
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.get_version.outputs.version }}
+          generateReleaseNotes: true
+          allowUpdates: true
+          artifacts: wittypi-ecomoni.zip
