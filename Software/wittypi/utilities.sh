@@ -9,7 +9,7 @@ export LC_ALL=en_GB.UTF-8
 if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly I2C_MC_ADDRESS=0x08
 
-  readonly I2C_BUS=0
+  readonly I2C_BUS=1
 
   readonly I2C_ID=0
   readonly I2C_VOLTAGE_IN_I=1
@@ -106,6 +106,7 @@ if [ -z ${I2C_MC_ADDRESS+x} ]; then
   readonly REASON_USB_5V_CONNECTED='0x09'
   readonly REASON_POWER_CONNECTED='0x0a'
   readonly REASON_REBOOT='0x0b'
+  readonly REASON_GUARANTEED_WAKE='0x0c'
 
   # config file
   if [ "$(lsb_release -si)" == "Ubuntu" ]; then

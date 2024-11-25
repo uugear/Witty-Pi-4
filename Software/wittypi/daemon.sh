@@ -11,7 +11,7 @@ cur_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$cur_dir/utilities.sh"
 
 TIME_UNKNOWN=1
-log 'Witty Pi daemon (v4.21) is started.'
+log 'Witty Pi daemon (v4.22) is started.'
 
 # system information
 os=$(get_os)
@@ -138,6 +138,8 @@ if [ $has_mc == 1 ] ; then
     log 'System starts up because power supply is newly connected.'
   elif [ "$reason" == $REASON_REBOOT ]; then
     log 'System starts up because it previously reboot.'
+  elif [ "$reason" == $REASON_GUARANTEED_WAKE ]; then
+    log 'System starts up because guaranteed wake is triggered.'
   else
     log "Unknown/incorrect startup reason: $reason"
   fi
