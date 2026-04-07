@@ -6,6 +6,20 @@
 # It is recommended to run it in your home directory.
 #
 
+# define cli flag default values
+installUWI=true
+
+# parse cli flags
+while [ "${1:-}" != "" ]; do
+  case "$1" in
+    "--no-uwi")
+      installUWI=false
+      ;;
+  esac
+  shift
+done
+
+
 # check if sudo is used
 if [ "$(id -u)" != 0 ]; then
   echo 'Sorry, you need to run this script with sudo'
@@ -150,9 +164,13 @@ if [ $ERR -eq 0 ]; then
 fi
 
 # install UUGear Web Interface
-curl https://www.uugear.com/repo/UWI/installUWI.sh | bash
+if [ "$installUWI" == true ]; then
+  curl https://www.uugear.com/repo/UWI/installUWI.sh | bash
+  echo
+else
+  echo '>>> Skipping UWI installation'
+fi
 
-echo
 if [ $ERR -eq 0 ]; then
   echo '>>> All done. Please reboot your Pi :-)'
 else
